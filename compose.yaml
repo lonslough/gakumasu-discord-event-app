@@ -1,0 +1,40 @@
+services:
+  web:
+    build:
+      context: .
+    working_dir: /app
+    init: true
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html:ro
+      - ./vite.config.ts:/app/vite.config.ts:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ./tsconfig.node.json:/app/tsconfig.node.json:ro
+      - ./eslint.config.js:/app/eslint.config.js:ro
+      - node_modules:/app/node_modules
+      - build_output:/app/dist
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+    command: npm run dev -- --host 0.0.0.0
+
+  supabase:
+    build:
+      context: .
+      dockerfile: Dockerfile.supabase
+    profiles: ["tools"]
+    network_mode: host
+    working_dir: ${PWD}
+    volumes:
+      - ${PWD}:${PWD}
+      - ${DOCKER_HOST_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    command: ["--help"]
+
+volumes:
+  node_modules:
+  build_output:
