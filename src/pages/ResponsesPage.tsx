@@ -5,7 +5,7 @@ import { rankedByCategory } from '../lib/ranking'
 import { supabase } from '../lib/supabase'
 import type { AdminSubmission, VerificationStatus } from '../types'
 
-const categoryName = { seina: '十王星南', tsubame: '雨夜燕' }
+const categoryName = { sena: '十王星南', tsubame: '雨夜燕' }
 const statusName = { pending: '未確認', verified: '確認済み', invalid: '無効' }
 const baseName = (path: string) => path.split('/').pop() ?? path
 
@@ -82,7 +82,7 @@ export function ResponsesPage() {
     const blob = new Blob([`\uFEFF${header.map(csvCell).join(',')}\r\n${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' })
     const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(blob); anchor.download = `responses-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(anchor.href)
   }
-  const rankings = { seina: rankedByCategory(rows, 'seina'), tsubame: rankedByCategory(rows, 'tsubame') }
+  const rankings = { sena: rankedByCategory(rows, 'sena'), tsubame: rankedByCategory(rows, 'tsubame') }
   const verified = rows.filter((row) => row.review?.verification_status === 'verified').length
 
   return (
@@ -91,15 +91,15 @@ export function ResponsesPage() {
       {error && <div className="notice error">{error}</div>}
       <div className="stats-grid">{[
         ['登録ユーザー数', registered], ['回答者数', rows.length], ['未回答者数', Math.max(0, registered - rows.length)],
-        ['十王星南部門', rows.filter((r) => r.category === 'seina').length], ['雨夜燕部門', rows.filter((r) => r.category === 'tsubame').length],
+        ['十王星南部門', rows.filter((r) => r.category === 'sena').length], ['雨夜燕部門', rows.filter((r) => r.category === 'tsubame').length],
       ].map(([label, value]) => <div className="stat card" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
-      <section className="rankings">{(['seina', 'tsubame'] as const).map((category) => <div className="card ranking" key={category}><div className="ranking-title"><h2>{categoryName[category]}ランキング</h2><span>確認済みのみ</span></div>
+      <section className="rankings">{(['sena', 'tsubame'] as const).map((category) => <div className="card ranking" key={category}><div className="ranking-title"><h2>{categoryName[category]}ランキング</h2><span>確認済みのみ</span></div>
         {rankings[category].length ? <ol>{rankings[category].slice(0, 10).map((row, index) => <li className={index < 3 ? `top top-${index + 1}` : ''} key={row.id}><span className="rank">{index + 1}</span><span><strong>{row.discord_username}</strong><small>{row.producer_name}</small></span><b>{row.review?.confirmed_score?.toLocaleString()}</b></li>)}</ol> : <p className="empty">ランキング対象の回答はありません。</p>}
       </div>)}</section>
       <section className="card table-card">
         <div className="table-heading"><div><h2>回答一覧</h2><p>{filtered.length}件表示・確認済み {verified}件</p></div></div>
         <div className="filters"><input type="search" placeholder="ユーザー名・IDで検索" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select aria-label="絞り込み" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">すべて</option><option value="seina">十王星南</option><option value="tsubame">雨夜燕</option><option value="pending">未確認</option><option value="verified">確認済み</option><option value="invalid">無効</option></select>
+          <select aria-label="絞り込み" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">すべて</option><option value="sena">十王星南</option><option value="tsubame">雨夜燕</option><option value="pending">未確認</option><option value="verified">確認済み</option><option value="invalid">無効</option></select>
           <select aria-label="並び替え" value={sort} onChange={(e) => setSort(e.target.value)}><option value="updated">最終更新日時</option><option value="created">回答日時</option><option value="score">確認済み評価値</option><option value="name">ユーザー名</option></select>
         </div>
         <div className="table-scroll"><table><thead><tr><th>参加者</th><th>部門</th><th>評価値</th><th>画像</th><th>初回回答</th><th>最終更新</th><th>状態</th><th>操作</th></tr></thead>

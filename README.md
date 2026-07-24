@@ -251,5 +251,3 @@ Viteの `VITE_*` 値やGitHub Pagesの配信物は誰でも取得できます。
 - Storage旧画像削除の失敗を自動再試行するジョブはありません。
 - 大人数運用時は管理RPCにページネーションを追加してください（ユーザー一覧は直近100件、回答一覧は現状全件）。
 - GitHub PagesのURLが変わった場合、Supabase AuthenticationのSite URL / Redirect URLsも実際の公開URLに合わせてください。
-
-git@github.com:lonslough/gakumasu-server-event-app.git

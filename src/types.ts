@@ -1,5 +1,5 @@
 export type Role = 'user' | 'admin'
-export type Category = 'seina' | 'tsubame'
+export type Category = 'sena' | 'tsubame'
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
 
 export interface Profile {

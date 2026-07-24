@@ -213,7 +213,7 @@ GitHub PagesでReact Routerを使用できるように、SPA用の404対応ま�
 内部的な値は以下とする。
 
 ```text
-seina
+sena
 tsubame
 ```
 
@@ -550,7 +550,7 @@ id uuid primary key default gen_random_uuid()
 user_id uuid unique not null references profiles(id) on delete cascade
 discord_username text not null
 producer_name text not null
-category text not null check (category in ('seina', 'tsubame'))
+category text not null check (category in ('sena', 'tsubame'))
 score_image_path text not null
 deck_image_path text not null
 created_at timestamptz not null default now()

@@ -18,5 +18,5 @@ describe('画像検証', () => {
 
 describe('応募フォーム', () => {
   it('必須項目を検証する', () => expect(Object.keys(validateEntry({ discordUsername: '', producerName: '', category: '', scoreFile: null, deckFile: null }))).toHaveLength(5))
-  it('既存画像を維持できる', () => expect(validateEntry({ discordUsername: 'discord', producerName: 'producer', category: 'seina', scoreFile: null, deckFile: null }, true)).toEqual({}))
+  it('既存画像を維持できる', () => expect(validateEntry({ discordUsername: 'discord', producerName: 'producer', category: 'sena', scoreFile: null, deckFile: null }, true)).toEqual({}))
 })
