@@ -13,7 +13,7 @@ create table public.submissions (
   user_id uuid unique not null references public.profiles(id) on delete cascade,
   discord_username text not null check (char_length(discord_username) between 1 and 100),
   producer_name text not null check (char_length(producer_name) between 1 and 100),
-  category text not null check (category in ('seina', 'tsubame')),
+  category text not null check (category in ('sena', 'tsubame')),
   score_image_path text not null,
   deck_image_path text not null,
   created_at timestamptz not null default now(),

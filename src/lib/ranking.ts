@@ -1,6 +1,6 @@
 import type { AdminSubmission } from '../types'
 
-export function rankedByCategory(rows: AdminSubmission[], category: 'seina' | 'tsubame'): AdminSubmission[] {
+export function rankedByCategory(rows: AdminSubmission[], category: 'sena' | 'tsubame'): AdminSubmission[] {
   return rows
     .filter(
       (row) =>
