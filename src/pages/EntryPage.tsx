@@ -130,7 +130,7 @@ export function EntryPage() {
         <section className="card form-section"><div className="section-number">02</div><div className="section-content">
           <h2>応募部門</h2><fieldset><legend>応募する部門を1つ選択してください <span className="required">必須</span></legend>
             <div className="radio-cards">
-              {([['sena', '十王星南', 'sena'], ['tsubame', '雨夜燕', 'TSUBAME']] as const).map(([value, label, sub]) =>
+              {([['sena', '十王星南', 'SENA'], ['tsubame', '雨夜燕', 'TSUBAME']] as const).map(([value, label, sub]) =>
                 <label className={values.category === value ? 'selected' : ''} key={value}><input type="radio" name="category" value={value} checked={values.category === value} onChange={() => setValues({ ...values, category: value })} /><span><strong>{label}</strong><small>{sub} CATEGORY</small></span></label>)}
             </div>{errors.category && <p className="field-error">{errors.category}</p>}
           </fieldset>
