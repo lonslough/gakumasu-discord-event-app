@@ -26,6 +26,7 @@ jobs:
       - run: npm run test
       - run: npm run build
         env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5

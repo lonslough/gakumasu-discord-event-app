@@ -146,7 +146,7 @@ DOCKER_HOST_SOCKET="$HOME/.docker/run/docker.sock" docker compose --profile tool
 
 ```bash
 cp .env.example .env
-# .env にProject URLとAnon keyを設定
+# supabase statusのProject URLとPublishable keyを.envへ設定
 docker compose up --build
 ```
 
@@ -170,22 +170,45 @@ docker compose run --rm web npm run build
 
 Volumeを含めて完全に作り直す場合は `docker compose down --volumes` を実行してください。この操作はコンテナ内の依存関係とビルド成果物を削除しますが、ソースコードや `.env` は削除しません。
 
-フロントエンドが使う環境変数は `VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` だけです。Composeがホストの `.env` を読み、コンテナ環境へ渡します。
+フロントエンドが使う環境変数は `VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` だけです。Composeがホストの `.env` を読み、コンテナ環境へ渡します。[.env.example](.env.example) はローカルSupabase用、[.env.production.example](.env.production.example) はSupabase Cloud用のサンプルです。いずれもService Role Keyを含めてはいけません。
 
 ## 9. GitHub Variables / Secrets
 
 リポジトリの Settings → Secrets and variables → Actions で設定します。
 
-- Variable: `VITE_SUPABASE_URL`
-- Secret: `VITE_SUPABASE_ANON_KEY`
+Variables:
+
+- `VITE_SUPABASE_URL`
+- `SUPABASE_PROJECT_ID`: Dashboard URLの `/project/` に続くProject Reference
+
+Secrets:
+
+- `VITE_SUPABASE_ANON_KEY`
+- `SUPABASE_ACCESS_TOKEN`: Supabase Account → Access Tokensで発行
+- `SUPABASE_DB_PASSWORD`: Supabaseプロジェクト作成時のDBパスワード
 
 Anon keyは公開前提のキーですが、誤操作を減らすためSecretとして扱っています。Service Role KeyはGitHubへ登録せず、ビルドにも渡しません。
+
+Settings → Environmentsで `production` 環境を作成してください。必要に応じてRequired reviewersやデプロイ対象ブランチを設定すると、DB変更とFunctionsデプロイの前に承認を要求できます。
 
 ## 10. GitHub Pages
 
 Settings → Pages → Build and deployment → Sourceで **GitHub Actions** を選択します。`main` pushでlint・test・build後に自動デプロイされ、PRでは検証のみ行います。Viteは `GITHUB_REPOSITORY` からリポジトリ名を判定して `base` を設定します。
 
 BrowserRouterを使用し、`public/404.html` が直接アクセスされたパスをSession Storageへ退避してSPAへ復元します。カスタムドメインなど公開パスを変える場合は404内のbase計算も確認してください。
+
+## Supabaseの継続的デプロイ
+
+[SupabaseデプロイWorkflow](.github/workflows/supabase-deploy.yml) は `supabase/` 配下の変更を対象にします。
+
+- Pull Request: 新しいローカルDBへ全マイグレーションを適用し、DB lintとEdge Functionsの型検査を実行
+- `main`へのpush: 上記検証後、未適用マイグレーションを本番DBへ反映
+- DB反映成功後: `config.toml` に定義された全Edge Functionsを本番へデプロイ
+- 手動実行: Actions画面の `Validate and deploy Supabase` から実行可能
+
+本番デプロイは `supabase-production` concurrency groupにより直列化されます。複数マイグレーションが同時に本番へ適用されることはありません。失敗した場合はFunctionsへ進まず、既に適用済みのマイグレーションを自動的にロールバックもしません。修正用の新しいマイグレーションを追加してください。
+
+一度この運用を開始したら、本番DashboardのSQL EditorやTable Editorで直接スキーマを変更しないでください。リモートのマイグレーション履歴とGit管理されたSQLが不一致になる原因になります。
 
 ## 11. 本番動作確認
 
@@ -228,3 +251,5 @@ Viteの `VITE_*` 値やGitHub Pagesの配信物は誰でも取得できます。
 - Storage旧画像削除の失敗を自動再試行するジョブはありません。
 - 大人数運用時は管理RPCにページネーションを追加してください（ユーザー一覧は直近100件、回答一覧は現状全件）。
 - GitHub PagesのURLが変わった場合、Supabase AuthenticationのSite URL / Redirect URLsも実際の公開URLに合わせてください。
+
+git@github.com:lonslough/gakumasu-server-event-app.git
