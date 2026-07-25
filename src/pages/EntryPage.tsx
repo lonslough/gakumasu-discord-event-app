@@ -15,8 +15,7 @@ const initialValues: EntryValues = {
   producerName: '',
   category: '',
   entryDivision: '',
-  scoreFile: null,
-  deckFile: null,
+  resultFile: null,
   beginnerProofFile: null,
 }
 const bucket = 'submission-images'
@@ -88,8 +87,7 @@ export function EntryPage() {
   const [values, setValues] = useState<EntryValues>(initialValues)
   const [existing, setExisting] = useState<Submission | null>(null)
   const [urls, setUrls] = useState<{
-    score: string
-    deck: string
+    result: string
     beginnerProof?: string
   } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -115,13 +113,11 @@ export function EntryPage() {
         producerName: submission.producer_name,
         category: submission.category,
         entryDivision: submission.entry_division,
-        scoreFile: null,
-        deckFile: null,
+        resultFile: null,
         beginnerProofFile: null,
       })
       const imagePaths = [
         submission.score_image_path,
-        submission.deck_image_path,
         ...(submission.beginner_proof_image_path
           ? [submission.beginner_proof_image_path]
           : []),
@@ -129,11 +125,10 @@ export function EntryPage() {
       const { data: signed } = await supabase.storage
         .from(bucket)
         .createSignedUrls(imagePaths, 600)
-      if (signed?.[0]?.signedUrl && signed?.[1]?.signedUrl)
+      if (signed?.[0]?.signedUrl)
         setUrls({
-          score: signed[0].signedUrl,
-          deck: signed[1].signedUrl,
-          beginnerProof: signed[2]?.signedUrl ?? undefined,
+          result: signed[0].signedUrl,
+          beginnerProof: signed[1]?.signedUrl ?? undefined,
         })
     }
     setLoading(false)
@@ -145,18 +140,14 @@ export function EntryPage() {
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault()
     const nextErrors = validateEntry(values, {
-      score: Boolean(existing?.score_image_path),
-      deck: Boolean(existing?.deck_image_path),
+      result: Boolean(existing?.score_image_path && !existing.deck_image_path),
       beginnerProof: Boolean(existing?.beginner_proof_image_path),
     })
     setErrors(nextErrors)
     if (!Object.keys(nextErrors).length) setConfirming(true)
   }
 
-  const upload = async (
-    file: File,
-    kind: 'score' | 'deck' | 'beginner-proof',
-  ) => {
+  const upload = async (file: File, kind: 'score' | 'beginner-proof') => {
     const path = `${session!.user.id}/${kind}/${crypto.randomUUID()}.${fileExtension(file.name)}`
     const { error } = await supabase.storage
       .from(bucket)
@@ -174,14 +165,10 @@ export function EntryPage() {
     setMessage('')
     const uploaded: string[] = []
     try {
-      const scorePath = values.scoreFile
-        ? await upload(values.scoreFile, 'score')
+      const resultPath = values.resultFile
+        ? await upload(values.resultFile, 'score')
         : existing!.score_image_path
-      if (values.scoreFile) uploaded.push(scorePath)
-      const deckPath = values.deckFile
-        ? await upload(values.deckFile, 'deck')
-        : existing!.deck_image_path
-      if (values.deckFile) uploaded.push(deckPath)
+      if (values.resultFile) uploaded.push(resultPath)
       const beginnerProofPath =
         entryDivision === 'beginner'
           ? values.beginnerProofFile
@@ -197,16 +184,16 @@ export function EntryPage() {
           producer_name: values.producerName.trim(),
           category: values.category,
           entry_division: entryDivision,
-          score_image_path: scorePath,
-          deck_image_path: deckPath,
+          score_image_path: resultPath,
+          deck_image_path: null,
           beginner_proof_image_path: beginnerProofPath,
         },
         { onConflict: 'user_id' },
       )
       if (error) throw new Error('database')
       const oldPaths = [
-        values.scoreFile ? existing?.score_image_path : null,
-        values.deckFile ? existing?.deck_image_path : null,
+        values.resultFile ? existing?.score_image_path : null,
+        values.resultFile ? existing?.deck_image_path : null,
         values.beginnerProofFile ||
         (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
           ? existing?.beginner_proof_image_path
@@ -398,39 +385,35 @@ export function EntryPage() {
           <div className="section-number">04</div>
           <div className="section-content">
             <h2>画像アップロード</h2>
-            <div className="form-grid">
-              <FileField
-                id="score"
-                label="評価値画像"
-                file={values.scoreFile}
-                existing={
-                  existing && urls
-                    ? {
-                        name: basename(existing.score_image_path),
-                        url: urls.score,
-                      }
-                    : null
-                }
-                error={errors.scoreFile}
-                onChange={(file) => setValues({ ...values, scoreFile: file })}
+            <figure className="image-sample">
+              <figcaption>
+                評価値と最終所持スキルカードが同時に確認できる、次のような画像を添付してください。
+              </figcaption>
+              <img
+                src={`${import.meta.env.BASE_URL}sample/score_sample.png`}
+                alt="評価値・最終所持スキルカード画像の見本"
               />
-              <FileField
-                id="deck"
-                label="最終デッキ画像"
-                description="メモリーのデッキが確認できる画像を添付してください"
-                file={values.deckFile}
-                existing={
-                  existing && urls
-                    ? {
-                        name: basename(existing.deck_image_path),
-                        url: urls.deck,
-                      }
-                    : null
-                }
-                error={errors.deckFile}
-                onChange={(file) => setValues({ ...values, deckFile: file })}
-              />
-            </div>
+            </figure>
+            {existing?.deck_image_path && (
+              <div className="notice warning">
+                画像項目の統合に伴い、次回の回答更新では新しい形式の画像を選択してください。
+              </div>
+            )}
+            <FileField
+              id="result"
+              label="評価値・最終所持スキルカード"
+              file={values.resultFile}
+              existing={
+                existing && urls && !existing.deck_image_path
+                  ? {
+                      name: basename(existing.score_image_path),
+                      url: urls.result,
+                    }
+                  : null
+              }
+              error={errors.resultFile}
+              onChange={(file) => setValues({ ...values, resultFile: file })}
+            />
             {values.entryDivision === 'beginner' && (
               <FileField
                 id="beginner-proof"

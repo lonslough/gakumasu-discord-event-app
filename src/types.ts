@@ -19,7 +19,7 @@ export interface Submission {
   category: Category
   entry_division: EntryDivision
   score_image_path: string
-  deck_image_path: string
+  deck_image_path: string | null
   beginner_proof_image_path: string | null
   created_at: string
   updated_at: string

@@ -107,14 +107,7 @@ export function ResponsesTable({
                       className="link-button"
                       onClick={() => onOpenImage(row.score_image_path)}
                     >
-                      評価値
-                    </button>{' '}
-                    /{' '}
-                    <button
-                      className="link-button"
-                      onClick={() => onOpenImage(row.deck_image_path)}
-                    >
-                      デッキ
+                      評価値・最終所持スキルカード
                     </button>
                     {row.beginner_proof_image_path && (
                       <>

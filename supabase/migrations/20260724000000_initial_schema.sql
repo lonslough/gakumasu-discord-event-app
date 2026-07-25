@@ -19,7 +19,7 @@ create table public.submissions (
   producer_name text not null check (char_length(producer_name) between 1 and 100),
   category text not null check (category in ('sena', 'tsubame')),
   score_image_path text not null,
-  deck_image_path text not null,
+  deck_image_path text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint own_score_path check (score_image_path like user_id::text || '/score/%'),

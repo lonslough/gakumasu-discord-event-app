@@ -1,0 +1,8 @@
+alter table public.submissions
+  alter column deck_image_path drop not null;
+
+comment on column public.submissions.score_image_path is
+  'Combined score and final owned skill cards image path';
+
+comment on column public.submissions.deck_image_path is
+  'Legacy deck image path; new submissions store null';
