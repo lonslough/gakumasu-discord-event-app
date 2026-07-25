@@ -1,4 +1,8 @@
-import type { ResponseFilter, ResponseSort } from '../../lib/adminResponses'
+import type {
+  CategoryFilter,
+  ResponseSort,
+  StatusFilter,
+} from '../../lib/adminResponses'
 import type { AdminSubmission } from '../../types'
 import { categoryName, entryDivisionName, statusName } from './labels'
 
@@ -6,12 +10,13 @@ interface ResponsesTableProps {
   rows: AdminSubmission[]
   verifiedCount: number
   search: string
-  filter: ResponseFilter
+  categoryFilter: CategoryFilter
+  statusFilter: StatusFilter
   sort: ResponseSort
   onSearchChange: (value: string) => void
-  onFilterChange: (value: ResponseFilter) => void
+  onCategoryFilterChange: (value: CategoryFilter) => void
+  onStatusFilterChange: (value: StatusFilter) => void
   onSortChange: (value: ResponseSort) => void
-  onOpenImage: (path: string) => void
   onEdit: (row: AdminSubmission) => void
 }
 
@@ -19,12 +24,13 @@ export function ResponsesTable({
   rows,
   verifiedCount,
   search,
-  filter,
+  categoryFilter,
+  statusFilter,
   sort,
   onSearchChange,
-  onFilterChange,
+  onCategoryFilterChange,
+  onStatusFilterChange,
   onSortChange,
-  onOpenImage,
   onEdit,
 }: ResponsesTableProps) {
   return (
@@ -45,15 +51,24 @@ export function ResponsesTable({
           onChange={(event) => onSearchChange(event.target.value)}
         />
         <select
-          aria-label="絞り込み"
-          value={filter}
+          aria-label="育成キャラクターで絞り込み"
+          value={categoryFilter}
           onChange={(event) =>
-            onFilterChange(event.target.value as ResponseFilter)
+            onCategoryFilterChange(event.target.value as CategoryFilter)
           }
         >
-          <option value="all">すべて</option>
+          <option value="all">すべてのキャラクター</option>
           <option value="sena">十王星南</option>
           <option value="tsubame">雨夜燕</option>
+        </select>
+        <select
+          aria-label="確認状態で絞り込み"
+          value={statusFilter}
+          onChange={(event) =>
+            onStatusFilterChange(event.target.value as StatusFilter)
+          }
+        >
+          <option value="all">すべての状態</option>
           <option value="pending">未確認</option>
           <option value="verified">確認済み</option>
           <option value="invalid">無効</option>
@@ -77,7 +92,6 @@ export function ResponsesTable({
               <th>部門</th>
               <th>応募部門</th>
               <th>評価値</th>
-              <th>画像</th>
               <th>初回回答</th>
               <th>最終更新</th>
               <th>状態</th>
@@ -88,10 +102,6 @@ export function ResponsesTable({
             {rows.map((row) => {
               const verificationStatus =
                 row.review?.verification_status ?? 'pending'
-              const hasResultImage = Boolean(
-                row.score_image_path && !row.deck_image_path,
-              )
-
               return (
                 <tr key={row.id}>
                   <td>
@@ -105,46 +115,6 @@ export function ResponsesTable({
                   <td className="score">
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
                   </td>
-                  <td>
-                    {hasResultImage ? (
-                      <button
-                        className="link-button"
-                        onClick={() => onOpenImage(row.score_image_path!)}
-                      >
-                        評価値・最終所持スキルカード
-                      </button>
-                    ) : (
-                      <span className="muted">未提出</span>
-                    )}
-                    {row.beginner_proof_image_path && (
-                      <>
-                        {' '}
-                        /{' '}
-                        <button
-                          className="link-button"
-                          onClick={() =>
-                            onOpenImage(row.beginner_proof_image_path!)
-                          }
-                        >
-                          PID・Pレベル
-                        </button>
-                      </>
-                    )}
-                    {row.login_days_proof_image_path && (
-                      <>
-                        {' '}
-                        /{' '}
-                        <button
-                          className="link-button"
-                          onClick={() =>
-                            onOpenImage(row.login_days_proof_image_path!)
-                          }
-                        >
-                          ログイン日数
-                        </button>
-                      </>
-                    )}
-                  </td>
                   <td>{new Date(row.created_at).toLocaleString('ja-JP')}</td>
                   <td>{new Date(row.updated_at).toLocaleString('ja-JP')}</td>
                   <td>
@@ -155,12 +125,6 @@ export function ResponsesTable({
                   <td>
                     <button
                       className="button secondary small"
-                      disabled={!hasResultImage}
-                      title={
-                        hasResultImage
-                          ? undefined
-                          : '評価値・最終所持スキルカード画像が未提出のため操作できません'
-                      }
                       onClick={() => onEdit(row)}
                     >
                       確認・編集

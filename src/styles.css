@@ -673,9 +673,38 @@ td small {
 }
 .filters {
   display: grid;
-  grid-template-columns: 1fr 180px 180px;
+  grid-template-columns: minmax(220px, 1fr) repeat(3, 180px);
   gap: 10px;
   margin-bottom: 15px;
+}
+.review-images {
+  margin-bottom: 20px;
+}
+.review-images h3 {
+  margin: 0 0 12px;
+}
+.review-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.review-image {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.review-image img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #090c15;
+}
+.review-image .link-button {
+  overflow-wrap: anywhere;
 }
 .filters input,
 .filters select {
@@ -784,6 +813,9 @@ td small {
     grid-template-columns: 1fr 1fr;
   }
   .filters {
+    grid-template-columns: 1fr;
+  }
+  .review-image-grid {
     grid-template-columns: 1fr;
   }
   .step-pill {

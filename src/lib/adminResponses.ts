@@ -1,6 +1,7 @@
 import type { AdminSubmission, Category, VerificationStatus } from '../types'
 
-export type ResponseFilter = 'all' | Category | VerificationStatus
+export type CategoryFilter = 'all' | Category
+export type StatusFilter = 'all' | VerificationStatus
 export type ResponseSort = 'updated' | 'created' | 'score' | 'name'
 
 export interface ResponseStats {
@@ -11,6 +12,10 @@ export interface ResponseStats {
 }
 
 const pendingStatus: VerificationStatus = 'pending'
+
+export function hasResultImage(row: AdminSubmission): boolean {
+  return Boolean(row.score_image_path && !row.deck_image_path)
+}
 
 function timestamp(value: string): number {
   return new Date(value).getTime()
@@ -24,13 +29,16 @@ function matchesSearch(row: AdminSubmission, query: string): boolean {
   )
 }
 
-function matchesFilter(row: AdminSubmission, filter: ResponseFilter): boolean {
-  if (filter === 'all') return true
-
-  return (
-    row.category === filter ||
-    (row.review?.verification_status ?? pendingStatus) === filter
-  )
+function matchesFilters(
+  row: AdminSubmission,
+  category: CategoryFilter,
+  status: StatusFilter,
+): boolean {
+  const matchesCategory = category === 'all' || row.category === category
+  const matchesStatus =
+    status === 'all' ||
+    (row.review?.verification_status ?? pendingStatus) === status
+  return matchesCategory && matchesStatus
 }
 
 function compareResponses(
@@ -56,13 +64,17 @@ function compareResponses(
 export function filterAndSortResponses(
   rows: AdminSubmission[],
   search: string,
-  filter: ResponseFilter,
+  category: CategoryFilter,
+  status: StatusFilter,
   sort: ResponseSort,
 ): AdminSubmission[] {
   const query = search.trim().toLowerCase()
 
   return rows
-    .filter((row) => matchesSearch(row, query) && matchesFilter(row, filter))
+    .filter(
+      (row) =>
+        matchesSearch(row, query) && matchesFilters(row, category, status),
+    )
     .sort((first, second) => compareResponses(first, second, sort))
 }
 

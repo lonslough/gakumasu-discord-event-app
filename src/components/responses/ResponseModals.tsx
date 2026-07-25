@@ -6,11 +6,20 @@ export interface SubmissionImage {
   name: string
 }
 
+export interface ReviewImages {
+  result?: SubmissionImage
+  beginnerProof?: SubmissionImage
+  loginDaysProof?: SubmissionImage
+}
+
 interface ReviewModalProps {
   score: string
   status: VerificationStatus
   note: string
   saving: boolean
+  verificationDisabled: boolean
+  images: ReviewImages
+  imagesLoading: boolean
   onScoreChange: (value: string) => void
   onStatusChange: (value: VerificationStatus) => void
   onNoteChange: (value: string) => void
@@ -23,6 +32,9 @@ export function ReviewModal({
   status,
   note,
   saving,
+  verificationDisabled,
+  images,
+  imagesLoading,
   onScoreChange,
   onStatusChange,
   onNoteChange,
@@ -45,6 +57,48 @@ export function ReviewModal({
         </>
       }
     >
+      <section className="review-images">
+        <h3>提出画像</h3>
+        {imagesLoading ? (
+          <div className="spinner" aria-label="画像を読み込み中" />
+        ) : (
+          <div className="review-image-grid">
+            {(
+              [
+                ['評価値・最終所持スキルカード', images.result],
+                ['PID・Pレベル', images.beginnerProof],
+                ['ログイン日数', images.loginDaysProof],
+              ] as const
+            ).map(([label, image]) => (
+              <div className="review-image card" key={label}>
+                <strong>{label}</strong>
+                {image ? (
+                  <>
+                    <a href={image.url} target="_blank" rel="noreferrer">
+                      <img src={image.url} alt={`${label}画像`} />
+                    </a>
+                    <a
+                      className="link-button"
+                      href={image.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {image.name}を新しいタブで開く
+                    </a>
+                  </>
+                ) : (
+                  <span className="muted">未提出</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+      {verificationDisabled && (
+        <div className="notice warning">
+          評価値・最終所持スキルカード画像が未提出のため、確認済み評価値と確認状態は編集できません。
+        </div>
+      )}
       <div className="review-grid">
         <label>
           確認済み評価値
@@ -53,6 +107,7 @@ export function ReviewModal({
             min="0"
             step="1"
             value={score}
+            disabled={verificationDisabled}
             onChange={(event) => onScoreChange(event.target.value)}
           />
         </label>
@@ -60,6 +115,7 @@ export function ReviewModal({
           確認状態
           <select
             value={status}
+            disabled={verificationDisabled}
             onChange={(event) =>
               onStatusChange(event.target.value as VerificationStatus)
             }
@@ -79,33 +135,6 @@ export function ReviewModal({
           onChange={(event) => onNoteChange(event.target.value)}
         />
       </label>
-    </Modal>
-  )
-}
-
-interface ImageModalProps {
-  image: SubmissionImage
-  onClose: () => void
-}
-
-export function ImageModal({ image, onClose }: ImageModalProps) {
-  return (
-    <Modal
-      title={image.name}
-      wide
-      onClose={onClose}
-      actions={
-        <a
-          className="button primary"
-          href={image.url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          新しいタブで開く
-        </a>
-      }
-    >
-      <img className="large-image" src={image.url} alt={image.name} />
     </Modal>
   )
 }
