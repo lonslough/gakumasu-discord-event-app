@@ -58,6 +58,7 @@ describe('応募フォーム', () => {
           entryDivision: '',
           resultFile: null,
           beginnerProofFile: null,
+          loginDaysProofFile: null,
         }),
       ),
     ).toHaveLength(4))
@@ -70,6 +71,7 @@ describe('応募フォーム', () => {
         entryDivision: 'open',
         resultFile: null,
         beginnerProofFile: null,
+        loginDaysProofFile: null,
       }),
     ).toEqual({}))
   it('初心者部門ではPIDとPレベル画像を必須にする', () =>
@@ -82,8 +84,9 @@ describe('応募フォーム', () => {
           entryDivision: 'beginner',
           resultFile: null,
           beginnerProofFile: null,
+          loginDaysProofFile: null,
         },
-        { beginnerProof: false },
+        { beginnerProof: false, loginDaysProof: true },
       ),
     ).toHaveProperty('beginnerProofFile'))
   it('初心者部門以外ではPIDとPレベル画像を要求しない', () =>
@@ -96,8 +99,24 @@ describe('応募フォーム', () => {
           entryDivision: 'switch_off',
           resultFile: null,
           beginnerProofFile: null,
+          loginDaysProofFile: null,
         },
-        { beginnerProof: false },
+        { beginnerProof: false, loginDaysProof: false },
       ),
     ).toEqual({}))
+  it('初心者部門では総出席日数画像を必須にする', () =>
+    expect(
+      validateEntry(
+        {
+          discordUsername: 'discord',
+          producerName: 'producer',
+          category: 'sena',
+          entryDivision: 'beginner',
+          resultFile: null,
+          beginnerProofFile: null,
+          loginDaysProofFile: null,
+        },
+        { beginnerProof: true, loginDaysProof: false },
+      ),
+    ).toHaveProperty('loginDaysProofFile'))
 })

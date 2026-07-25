@@ -17,6 +17,7 @@ const initialValues: EntryValues = {
   entryDivision: '',
   resultFile: null,
   beginnerProofFile: null,
+  loginDaysProofFile: null,
 }
 const bucket = 'submission-images'
 const basename = (path: string) => path.split('/').pop() ?? path
@@ -96,6 +97,7 @@ export function EntryPage() {
   const [urls, setUrls] = useState<{
     result?: string
     beginnerProof?: string
+    loginDaysProof?: string
   } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -122,6 +124,7 @@ export function EntryPage() {
         entryDivision: submission.entry_division,
         resultFile: null,
         beginnerProofFile: null,
+        loginDaysProofFile: null,
       })
       const resultPath = submission.deck_image_path
         ? null
@@ -129,19 +132,20 @@ export function EntryPage() {
       const imagePaths = [
         resultPath,
         submission.beginner_proof_image_path,
+        submission.login_days_proof_image_path,
       ].filter((path): path is string => Boolean(path))
       if (imagePaths.length) {
         const { data: signed } = await supabase.storage
           .from(bucket)
           .createSignedUrls(imagePaths, 600)
-        const beginnerProofIndex = resultPath ? 1 : 0
+        const signedUrlFor = (path: string | null) => {
+          if (!path) return undefined
+          return signed?.[imagePaths.indexOf(path)]?.signedUrl ?? undefined
+        }
         setUrls({
-          result: resultPath
-            ? (signed?.[0]?.signedUrl ?? undefined)
-            : undefined,
-          beginnerProof: submission.beginner_proof_image_path
-            ? (signed?.[beginnerProofIndex]?.signedUrl ?? undefined)
-            : undefined,
+          result: signedUrlFor(resultPath),
+          beginnerProof: signedUrlFor(submission.beginner_proof_image_path),
+          loginDaysProof: signedUrlFor(submission.login_days_proof_image_path),
         })
       } else setUrls(null)
     }
@@ -155,12 +159,16 @@ export function EntryPage() {
     event.preventDefault()
     const nextErrors = validateEntry(values, {
       beginnerProof: Boolean(existing?.beginner_proof_image_path),
+      loginDaysProof: Boolean(existing?.login_days_proof_image_path),
     })
     setErrors(nextErrors)
     if (!Object.keys(nextErrors).length) setConfirming(true)
   }
 
-  const upload = async (file: File, kind: 'score' | 'beginner-proof') => {
+  const upload = async (
+    file: File,
+    kind: 'score' | 'beginner-proof' | 'login-days-proof',
+  ) => {
     const path = `${session!.user.id}/${kind}/${crypto.randomUUID()}.${fileExtension(file.name)}`
     const { error } = await supabase.storage
       .from(bucket)
@@ -192,6 +200,14 @@ export function EntryPage() {
           : null
       if (values.beginnerProofFile && beginnerProofPath)
         uploaded.push(beginnerProofPath)
+      const loginDaysProofPath =
+        entryDivision === 'beginner'
+          ? values.loginDaysProofFile
+            ? await upload(values.loginDaysProofFile, 'login-days-proof')
+            : existing?.login_days_proof_image_path
+          : null
+      if (values.loginDaysProofFile && loginDaysProofPath)
+        uploaded.push(loginDaysProofPath)
       const { error } = await supabase.from('submissions').upsert(
         {
           user_id: session.user.id,
@@ -202,6 +218,7 @@ export function EntryPage() {
           score_image_path: resultPath,
           deck_image_path: null,
           beginner_proof_image_path: beginnerProofPath,
+          login_days_proof_image_path: loginDaysProofPath,
         },
         { onConflict: 'user_id' },
       )
@@ -212,8 +229,12 @@ export function EntryPage() {
           : null,
         existing?.deck_image_path,
         values.beginnerProofFile ||
-        (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
+          (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
           ? existing?.beginner_proof_image_path
+          : null,
+        values.loginDaysProofFile ||
+          (entryDivision !== 'beginner' && existing?.login_days_proof_image_path)
+          ? existing?.login_days_proof_image_path
           : null,
       ].filter((path): path is string => Boolean(path))
       if (oldPaths.length) await supabase.storage.from(bucket).remove(oldPaths)
@@ -418,36 +439,71 @@ export function EntryPage() {
               file={values.resultFile}
               existing={
                 existing?.score_image_path &&
-                urls?.result &&
-                !existing.deck_image_path
+                  urls?.result &&
+                  !existing.deck_image_path
                   ? {
-                      name: basename(existing.score_image_path),
-                      url: urls.result,
-                    }
+                    name: basename(existing.score_image_path),
+                    url: urls.result,
+                  }
                   : null
               }
               error={errors.resultFile}
               onChange={(file) => setValues({ ...values, resultFile: file })}
             />
             {values.entryDivision === 'beginner' && (
-              <FileField
-                id="beginner-proof"
-                label="PID・Pレベル確認画像"
-                description="PIDとPレベルの両方がわかる画像を添付してください"
-                file={values.beginnerProofFile}
-                existing={
-                  existing?.beginner_proof_image_path && urls?.beginnerProof
-                    ? {
+              <div className="evidence-fields">
+                <figure className="image-sample">
+                  <figcaption>PID・Pレベル確認画像のサンプル</figcaption>
+                  <img
+                    src={`${import.meta.env.BASE_URL}sample/PID_Plv_sample.PNG`}
+                    alt="PID・Pレベル確認画像の見本"
+                  />
+                </figure>
+                <FileField
+                  id="beginner-proof"
+                  label="PID・Pレベル確認画像"
+                  description="PIDとPレベルの両方がわかる画像を添付してください"
+                  file={values.beginnerProofFile}
+                  existing={
+                    existing?.beginner_proof_image_path && urls?.beginnerProof
+                      ? {
                         name: basename(existing.beginner_proof_image_path),
                         url: urls.beginnerProof,
                       }
-                    : null
-                }
-                error={errors.beginnerProofFile}
-                onChange={(file) =>
-                  setValues({ ...values, beginnerProofFile: file })
-                }
-              />
+                      : null
+                  }
+                  error={errors.beginnerProofFile}
+                  onChange={(file) =>
+                    setValues({ ...values, beginnerProofFile: file })
+                  }
+                />
+                <figure className="image-sample">
+                  <figcaption>出席日数確認のサンプル</figcaption>
+                  <img
+                    src={`${import.meta.env.BASE_URL}sample/login_days_sample.png`}
+                    alt="出席日数画像の見本"
+                  />
+                </figure>
+                <FileField
+                  id="login-days-proof"
+                  label="出席日数確認画像"
+                  description="通知表の出席日数がわかる画像を添付してください"
+                  file={values.loginDaysProofFile}
+                  existing={
+                    existing?.login_days_proof_image_path &&
+                      urls?.loginDaysProof
+                      ? {
+                        name: basename(existing.login_days_proof_image_path),
+                        url: urls.loginDaysProof,
+                      }
+                      : null
+                  }
+                  error={errors.loginDaysProofFile}
+                  onChange={(file) =>
+                    setValues({ ...values, loginDaysProofFile: file })
+                  }
+                />
+              </div>
             )}
           </div>
         </section>

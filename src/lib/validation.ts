@@ -49,16 +49,19 @@ export interface EntryValues {
   entryDivision: EntryDivision | ''
   resultFile: File | null
   beginnerProofFile: File | null
+  loginDaysProofFile: File | null
 }
 
 export interface ExistingEntryFiles {
   beginnerProof: boolean
+  loginDaysProof: boolean
 }
 
 export function validateEntry(
   values: EntryValues,
   existingFiles: ExistingEntryFiles = {
     beginnerProof: false,
+    loginDaysProof: false,
   },
 ): Record<string, string> {
   const errors: Record<string, string> = {}
@@ -77,6 +80,12 @@ export function validateEntry(
     !existingFiles.beginnerProof
   )
     errors.beginnerProofFile = 'PIDとPレベルがわかる画像を選択してください。'
+  if (
+    values.entryDivision === 'beginner' &&
+    !values.loginDaysProofFile &&
+    !existingFiles.loginDaysProof
+  )
+    errors.loginDaysProofFile = '総出席日数がわかる画像を選択してください。'
   if (values.resultFile) {
     const error = validateImageFile(values.resultFile)
     if (error) errors.resultFile = error
@@ -84,6 +93,10 @@ export function validateEntry(
   if (values.beginnerProofFile) {
     const error = validateImageFile(values.beginnerProofFile)
     if (error) errors.beginnerProofFile = error
+  }
+  if (values.loginDaysProofFile) {
+    const error = validateImageFile(values.loginDaysProofFile)
+    if (error) errors.loginDaysProofFile = error
   }
   return errors
 }

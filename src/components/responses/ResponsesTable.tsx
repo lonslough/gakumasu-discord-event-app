@@ -88,6 +88,9 @@ export function ResponsesTable({
             {rows.map((row) => {
               const verificationStatus =
                 row.review?.verification_status ?? 'pending'
+              const hasResultImage = Boolean(
+                row.score_image_path && !row.deck_image_path,
+              )
 
               return (
                 <tr key={row.id}>
@@ -103,7 +106,7 @@ export function ResponsesTable({
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
                   </td>
                   <td>
-                    {row.score_image_path && !row.deck_image_path ? (
+                    {hasResultImage ? (
                       <button
                         className="link-button"
                         onClick={() => onOpenImage(row.score_image_path!)}
@@ -127,6 +130,20 @@ export function ResponsesTable({
                         </button>
                       </>
                     )}
+                    {row.login_days_proof_image_path && (
+                      <>
+                        {' '}
+                        /{' '}
+                        <button
+                          className="link-button"
+                          onClick={() =>
+                            onOpenImage(row.login_days_proof_image_path!)
+                          }
+                        >
+                          ログイン日数
+                        </button>
+                      </>
+                    )}
                   </td>
                   <td>{new Date(row.created_at).toLocaleString('ja-JP')}</td>
                   <td>{new Date(row.updated_at).toLocaleString('ja-JP')}</td>
@@ -138,6 +155,12 @@ export function ResponsesTable({
                   <td>
                     <button
                       className="button secondary small"
+                      disabled={!hasResultImage}
+                      title={
+                        hasResultImage
+                          ? undefined
+                          : '評価値・最終所持スキルカード画像が未提出のため操作できません'
+                      }
                       onClick={() => onEdit(row)}
                     >
                       確認・編集

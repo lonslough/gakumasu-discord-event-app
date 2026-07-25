@@ -19,6 +19,7 @@ function submission(overrides: Partial<AdminSubmission> = {}): AdminSubmission {
     score_image_path: 'score.png',
     deck_image_path: 'deck.png',
     beginner_proof_image_path: null,
+    login_days_proof_image_path: null,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-02T00:00:00.000Z',
     profile: { user_id: 'public-user-1' },
