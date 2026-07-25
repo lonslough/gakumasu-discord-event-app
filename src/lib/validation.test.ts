@@ -13,11 +13,18 @@ const file = (name: string, type: string, size = 10) =>
 describe('ユーザーID', () => {
   it('前後空白を除去し小文字化する', () =>
     expect(normalizeUserId('  Example_User-1 ')).toBe('example_user-1'))
-  it.each(['ab', 'a'.repeat(33), 'user@example', '日本語'])(
-    '不正な値 %s を拒否する',
-    (value) => expect(validateUserId(value)).not.toBeNull(),
+  it.each([
+    'ab',
+    'a'.repeat(33),
+    'user@example',
+    '日本語',
+    '.user',
+    'user.',
+    'user..name',
+  ])('不正な値 %s を拒否する', (value) =>
+    expect(validateUserId(value)).not.toBeNull(),
   )
-  it.each(['abc', 'example-user', 'user_123'])(
+  it.each(['abc', 'example-user', 'user_123', 'user.name'])(
     '正しい値 %s を許可する',
     (value) => expect(validateUserId(value)).toBeNull(),
   )

@@ -19,8 +19,8 @@ export function validateUserId(value: string): string | null {
   const normalized = normalizeUserId(value)
   if (normalized.length < 3 || normalized.length > 32)
     return 'ユーザーIDは3文字以上32文字以下で入力してください。'
-  if (!/^[a-z0-9_-]+$/.test(normalized))
-    return 'ユーザーIDには半角英数字、ハイフン、アンダースコアのみ使用できます。'
+  if (!/^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(normalized))
+    return 'ユーザーIDには半角英数字、ピリオド、ハイフン、アンダースコアのみ使用できます。ピリオドは文字の間に入力してください。'
   return null
 }
 
