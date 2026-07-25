@@ -1,6 +1,6 @@
 import type { ResponseFilter, ResponseSort } from '../../lib/adminResponses'
 import type { AdminSubmission } from '../../types'
-import { categoryName, statusName } from './labels'
+import { categoryName, entryDivisionName, statusName } from './labels'
 
 interface ResponsesTableProps {
   rows: AdminSubmission[]
@@ -75,6 +75,7 @@ export function ResponsesTable({
             <tr>
               <th>参加者</th>
               <th>部門</th>
+              <th>応募部門</th>
               <th>評価値</th>
               <th>画像</th>
               <th>初回回答</th>
@@ -97,6 +98,7 @@ export function ResponsesTable({
                     </small>
                   </td>
                   <td>{categoryName[row.category]}</td>
+                  <td>{entryDivisionName[row.entry_division]}</td>
                   <td className="score">
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
                   </td>
@@ -114,6 +116,20 @@ export function ResponsesTable({
                     >
                       デッキ
                     </button>
+                    {row.beginner_proof_image_path && (
+                      <>
+                        {' '}
+                        /{' '}
+                        <button
+                          className="link-button"
+                          onClick={() =>
+                            onOpenImage(row.beginner_proof_image_path!)
+                          }
+                        >
+                          PID・Pレベル
+                        </button>
+                      </>
+                    )}
                   </td>
                   <td>{new Date(row.created_at).toLocaleString('ja-JP')}</td>
                   <td>{new Date(row.updated_at).toLocaleString('ja-JP')}</td>

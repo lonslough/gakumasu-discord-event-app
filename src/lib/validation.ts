@@ -1,4 +1,4 @@
-import type { Category } from '../types'
+import type { Category, EntryDivision } from '../types'
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024
 const extensions = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif'])
@@ -46,13 +46,25 @@ export interface EntryValues {
   discordUsername: string
   producerName: string
   category: Category | ''
+  entryDivision: EntryDivision | ''
   scoreFile: File | null
   deckFile: File | null
+  beginnerProofFile: File | null
+}
+
+export interface ExistingEntryFiles {
+  score: boolean
+  deck: boolean
+  beginnerProof: boolean
 }
 
 export function validateEntry(
   values: EntryValues,
-  hasExistingImages = false,
+  existingFiles: ExistingEntryFiles = {
+    score: false,
+    deck: false,
+    beginnerProof: false,
+  },
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   const discordLength = values.discordUsername.trim().length
@@ -61,11 +73,19 @@ export function validateEntry(
     errors.discordUsername = '1文字以上100文字以下で入力してください。'
   if (producerLength < 1 || producerLength > 100)
     errors.producerName = '1文字以上100文字以下で入力してください。'
-  if (!values.category) errors.category = '応募部門を選択してください。'
-  if (!values.scoreFile && !hasExistingImages)
+  if (!values.category) errors.category = '育成キャラクターを選択してください。'
+  if (!values.entryDivision)
+    errors.entryDivision = '応募部門を選択してください。'
+  if (!values.scoreFile && !existingFiles.score)
     errors.scoreFile = '評価値画像を選択してください。'
-  if (!values.deckFile && !hasExistingImages)
+  if (!values.deckFile && !existingFiles.deck)
     errors.deckFile = '最終デッキ画像を選択してください。'
+  if (
+    values.entryDivision === 'beginner' &&
+    !values.beginnerProofFile &&
+    !existingFiles.beginnerProof
+  )
+    errors.beginnerProofFile = 'PIDとPレベルがわかる画像を選択してください。'
   if (values.scoreFile) {
     const error = validateImageFile(values.scoreFile)
     if (error) errors.scoreFile = error
@@ -73,6 +93,10 @@ export function validateEntry(
   if (values.deckFile) {
     const error = validateImageFile(values.deckFile)
     if (error) errors.deckFile = error
+  }
+  if (values.beginnerProofFile) {
+    const error = validateImageFile(values.beginnerProofFile)
+    if (error) errors.beginnerProofFile = error
   }
   return errors
 }

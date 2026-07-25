@@ -7,7 +7,11 @@ import {
 import { ResponseRankings } from '../components/responses/ResponseRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
-import { categoryName, statusName } from '../components/responses/labels'
+import {
+  categoryName,
+  entryDivisionName,
+  statusName,
+} from '../components/responses/labels'
 import { useAuth } from '../contexts/AuthContext'
 import {
   csvCell,
@@ -115,6 +119,7 @@ export function ResponsesPage() {
       'サーバー内ユーザーネーム',
       'ゲーム内プロデューサーネーム',
       '育成キャラクター',
+      '応募部門',
       '確認済み評価値',
       '確認状態',
       '管理者メモ',
@@ -127,6 +132,7 @@ export function ResponsesPage() {
         row.discord_username,
         row.producer_name,
         categoryName[row.category],
+        entryDivisionName[row.entry_division],
         row.review?.confirmed_score,
         statusName[row.review?.verification_status ?? 'pending'],
         row.review?.admin_note,

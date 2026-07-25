@@ -48,11 +48,13 @@ describe('応募フォーム', () => {
           discordUsername: '',
           producerName: '',
           category: '',
+          entryDivision: '',
           scoreFile: null,
           deckFile: null,
+          beginnerProofFile: null,
         }),
       ),
-    ).toHaveLength(5))
+    ).toHaveLength(6))
   it('既存画像を維持できる', () =>
     expect(
       validateEntry(
@@ -60,10 +62,42 @@ describe('応募フォーム', () => {
           discordUsername: 'discord',
           producerName: 'producer',
           category: 'sena',
+          entryDivision: 'open',
           scoreFile: null,
           deckFile: null,
+          beginnerProofFile: null,
         },
-        true,
+        { score: true, deck: true, beginnerProof: false },
+      ),
+    ).toEqual({}))
+  it('初心者部門ではPIDとPレベル画像を必須にする', () =>
+    expect(
+      validateEntry(
+        {
+          discordUsername: 'discord',
+          producerName: 'producer',
+          category: 'sena',
+          entryDivision: 'beginner',
+          scoreFile: null,
+          deckFile: null,
+          beginnerProofFile: null,
+        },
+        { score: true, deck: true, beginnerProof: false },
+      ),
+    ).toHaveProperty('beginnerProofFile'))
+  it('初心者部門以外ではPIDとPレベル画像を要求しない', () =>
+    expect(
+      validateEntry(
+        {
+          discordUsername: 'discord',
+          producerName: 'producer',
+          category: 'sena',
+          entryDivision: 'switch_off',
+          scoreFile: null,
+          deckFile: null,
+          beginnerProofFile: null,
+        },
+        { score: true, deck: true, beginnerProof: false },
       ),
     ).toEqual({}))
 })
