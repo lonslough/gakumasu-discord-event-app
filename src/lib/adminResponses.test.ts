@@ -4,6 +4,7 @@ import {
   csvCell,
   filterAndSortResponses,
   getResponseStats,
+  hasResultImage,
   isValidConfirmedScore,
   parseConfirmedScore,
 } from './adminResponses'
@@ -51,22 +52,49 @@ describe('filterAndSortResponses', () => {
 
   it('searches across participant identifiers', () => {
     expect(
-      filterAndSortResponses([pending, verified], 'PUBLIC-USER', 'all', 'name'),
+      filterAndSortResponses(
+        [pending, verified],
+        'PUBLIC-USER',
+        'all',
+        'all',
+        'name',
+      ),
     ).toEqual([verified, pending])
   })
 
-  it('filters by category or verification status', () => {
+  it('filters category and verification status independently', () => {
     expect(
-      filterAndSortResponses([pending, verified], '', 'tsubame', 'updated'),
+      filterAndSortResponses(
+        [pending, verified],
+        '',
+        'tsubame',
+        'all',
+        'updated',
+      ),
     ).toEqual([verified])
     expect(
-      filterAndSortResponses([pending, verified], '', 'pending', 'updated'),
+      filterAndSortResponses(
+        [pending, verified],
+        '',
+        'all',
+        'pending',
+        'updated',
+      ),
     ).toEqual([pending])
+    expect(
+      filterAndSortResponses(
+        [pending, verified],
+        '',
+        'tsubame',
+        'pending',
+        'updated',
+      ),
+    ).toEqual([])
   })
 
   it('sorts missing scores after confirmed scores', () => {
     expect(
-      filterAndSortResponses([pending, verified], '', 'all', 'score'),
+      filterAndSortResponses([pending, verified], '', 'all', 'all', 'score'),
     ).toEqual([verified, pending])
   })
 })
@@ -106,6 +134,22 @@ describe('confirmed score helpers', () => {
     expect(isValidConfirmedScore('-1')).toBe(false)
     expect(isValidConfirmedScore('1.5')).toBe(false)
     expect(isValidConfirmedScore('score')).toBe(false)
+  })
+})
+
+describe('hasResultImage', () => {
+  it('accepts only the current combined-image format', () => {
+    expect(
+      hasResultImage(
+        submission({ score_image_path: 'score.png', deck_image_path: null }),
+      ),
+    ).toBe(true)
+    expect(
+      hasResultImage(
+        submission({ score_image_path: null, deck_image_path: null }),
+      ),
+    ).toBe(false)
+    expect(hasResultImage(submission())).toBe(false)
   })
 })
 

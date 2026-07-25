@@ -229,11 +229,11 @@ export function EntryPage() {
           : null,
         existing?.deck_image_path,
         values.beginnerProofFile ||
-          (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
+        (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
           ? existing?.beginner_proof_image_path
           : null,
         values.loginDaysProofFile ||
-          (entryDivision !== 'beginner' && existing?.login_days_proof_image_path)
+        (entryDivision !== 'beginner' && existing?.login_days_proof_image_path)
           ? existing?.login_days_proof_image_path
           : null,
       ].filter((path): path is string => Boolean(path))
@@ -439,12 +439,12 @@ export function EntryPage() {
               file={values.resultFile}
               existing={
                 existing?.score_image_path &&
-                  urls?.result &&
-                  !existing.deck_image_path
+                urls?.result &&
+                !existing.deck_image_path
                   ? {
-                    name: basename(existing.score_image_path),
-                    url: urls.result,
-                  }
+                      name: basename(existing.score_image_path),
+                      url: urls.result,
+                    }
                   : null
               }
               error={errors.resultFile}
@@ -467,9 +467,9 @@ export function EntryPage() {
                   existing={
                     existing?.beginner_proof_image_path && urls?.beginnerProof
                       ? {
-                        name: basename(existing.beginner_proof_image_path),
-                        url: urls.beginnerProof,
-                      }
+                          name: basename(existing.beginner_proof_image_path),
+                          url: urls.beginnerProof,
+                        }
                       : null
                   }
                   error={errors.beginnerProofFile}
@@ -491,11 +491,11 @@ export function EntryPage() {
                   file={values.loginDaysProofFile}
                   existing={
                     existing?.login_days_proof_image_path &&
-                      urls?.loginDaysProof
+                    urls?.loginDaysProof
                       ? {
-                        name: basename(existing.login_days_proof_image_path),
-                        url: urls.loginDaysProof,
-                      }
+                          name: basename(existing.login_days_proof_image_path),
+                          url: urls.loginDaysProof,
+                        }
                       : null
                   }
                   error={errors.loginDaysProofFile}

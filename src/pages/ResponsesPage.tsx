@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ImageModal,
   ReviewModal,
-  type SubmissionImage,
+  type ReviewImages,
 } from '../components/responses/ResponseModals'
 import { ResponseRankings } from '../components/responses/ResponseRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
@@ -17,10 +16,12 @@ import {
   csvCell,
   filterAndSortResponses,
   getResponseStats,
+  hasResultImage,
   isValidConfirmedScore,
   parseConfirmedScore,
-  type ResponseFilter,
+  type CategoryFilter,
   type ResponseSort,
+  type StatusFilter,
 } from '../lib/adminResponses'
 import { rankedByCategory } from '../lib/ranking'
 import { supabase } from '../lib/supabase'
@@ -33,14 +34,16 @@ export function ResponsesPage() {
   const [rows, setRows] = useState<AdminSubmission[]>([])
   const [registered, setRegistered] = useState(0)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<ResponseFilter>('all')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<ResponseSort>('updated')
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<AdminSubmission | null>(null)
   const [score, setScore] = useState('')
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [note, setNote] = useState('')
-  const [image, setImage] = useState<SubmissionImage | null>(null)
+  const [reviewImages, setReviewImages] = useState<ReviewImages>({})
+  const [imagesLoading, setImagesLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -61,8 +64,9 @@ export function ResponsesPage() {
   }, [load])
 
   const filtered = useMemo(
-    () => filterAndSortResponses(rows, search, filter, sort),
-    [rows, search, filter, sort],
+    () =>
+      filterAndSortResponses(rows, search, categoryFilter, statusFilter, sort),
+    [rows, search, categoryFilter, statusFilter, sort],
   )
   const rankings = useMemo(
     () => ({
@@ -76,36 +80,67 @@ export function ResponsesPage() {
     [rows, registered],
   )
 
-  const openImage = async (path: string) => {
-    const { data, error: signedError } = await supabase.storage
-      .from('submission-images')
-      .createSignedUrl(path, 300)
-    if (signedError) return setError('画像を開けませんでした。')
-    setImage({ url: data.signedUrl, name: baseName(path) })
-  }
-
-  const edit = (row: AdminSubmission) => {
+  const edit = async (row: AdminSubmission) => {
     setEditing(row)
     setScore(row.review?.confirmed_score?.toString() ?? '')
     setStatus(row.review?.verification_status ?? 'pending')
     setNote(row.review?.admin_note ?? '')
+    setReviewImages({})
+    setImagesLoading(true)
+
+    const paths = {
+      result: hasResultImage(row) ? row.score_image_path : null,
+      beginnerProof: row.beginner_proof_image_path,
+      loginDaysProof: row.login_days_proof_image_path,
+    }
+    const signedEntries = await Promise.all(
+      Object.entries(paths).map(async ([key, path]) => {
+        if (!path) return [key, undefined] as const
+        const { data, error: signedError } = await supabase.storage
+          .from('submission-images')
+          .createSignedUrl(path, 300)
+        if (signedError) {
+          setError('一部の画像を開けませんでした。')
+          return [key, undefined] as const
+        }
+        return [key, { url: data.signedUrl, name: baseName(path) }] as const
+      }),
+    )
+    setReviewImages(Object.fromEntries(signedEntries) as ReviewImages)
+    setImagesLoading(false)
   }
 
   const saveReview = async () => {
     if (!editing || !session) return
-    if (!isValidConfirmedScore(score))
+    const canEditVerification = hasResultImage(editing)
+    if (canEditVerification && !isValidConfirmedScore(score))
       return setError('評価値は0以上の整数で入力してください。')
 
+    const nextStatus = canEditVerification
+      ? status
+      : (editing.review?.verification_status ?? 'pending')
     setSaving(true)
     const { error: saveError } = await supabase
       .from('submission_reviews')
       .upsert({
         submission_id: editing.id,
-        confirmed_score: parseConfirmedScore(score),
-        verification_status: status,
+        confirmed_score: canEditVerification
+          ? parseConfirmedScore(score)
+          : (editing.review?.confirmed_score ?? null),
+        verification_status: nextStatus,
         admin_note: note.trim(),
-        verified_at: status === 'verified' ? new Date().toISOString() : null,
-        verified_by: status === 'verified' ? session.user.id : null,
+        verified_at:
+          nextStatus === 'verified'
+            ? canEditVerification
+              ? new Date().toISOString()
+              : (editing.review?.verified_at ?? null)
+            : null,
+        verified_by:
+          nextStatus === 'verified'
+            ? canEditVerification
+              ? session.user.id
+              : (editing.review?.verified_by ?? null)
+            : null,
       })
     setSaving(false)
     if (saveError) return setError('確認結果を保存できませんでした。')
@@ -173,13 +208,14 @@ export function ResponsesPage() {
         rows={filtered}
         verifiedCount={stats.verified}
         search={search}
-        filter={filter}
+        categoryFilter={categoryFilter}
+        statusFilter={statusFilter}
         sort={sort}
         onSearchChange={setSearch}
-        onFilterChange={setFilter}
+        onCategoryFilterChange={setCategoryFilter}
+        onStatusFilterChange={setStatusFilter}
         onSortChange={setSort}
-        onOpenImage={(path) => void openImage(path)}
-        onEdit={edit}
+        onEdit={(row) => void edit(row)}
       />
 
       {editing && (
@@ -188,14 +224,19 @@ export function ResponsesPage() {
           status={status}
           note={note}
           saving={saving}
+          verificationDisabled={!hasResultImage(editing)}
+          images={reviewImages}
+          imagesLoading={imagesLoading}
           onScoreChange={setScore}
           onStatusChange={setStatus}
           onNoteChange={setNote}
           onSave={() => void saveReview()}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null)
+            setReviewImages({})
+          }}
         />
       )}
-      {image && <ImageModal image={image} onClose={() => setImage(null)} />}
     </main>
   )
 }
