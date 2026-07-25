@@ -7,5 +7,11 @@ export const isConfigured = Boolean(url && anonKey)
 export const supabase = createClient(
   url ?? 'https://configuration-required.invalid',
   anonKey ?? 'configuration-required',
-  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } },
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  },
 )

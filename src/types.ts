@@ -1,5 +1,6 @@
 export type Role = 'user' | 'admin'
 export type Category = 'sena' | 'tsubame'
+export type EntryDivision = 'open' | 'switch_off' | 'beginner'
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
 
 export interface Profile {
@@ -16,8 +17,10 @@ export interface Submission {
   discord_username: string
   producer_name: string
   category: Category
+  entry_division: EntryDivision
   score_image_path: string
   deck_image_path: string
+  beginner_proof_image_path: string | null
   created_at: string
   updated_at: string
 }

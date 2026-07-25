@@ -1,4 +1,4 @@
-import type { Category } from '../types'
+import type { Category, EntryDivision } from '../types'
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024
 const extensions = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif'])
@@ -33,9 +33,12 @@ export function fileExtension(name: string): string {
 }
 
 export function validateImageFile(file: File): string | null {
-  if (!extensions.has(fileExtension(file.name))) return 'jpg、jpeg、png、heic、heif形式を選択してください。'
-  if (!mimeTypes.has(file.type.toLowerCase())) return '画像の種類を確認できません。対応する画像ファイルを選択してください。'
-  if (file.size > MAX_FILE_SIZE) return 'ファイルサイズは10MB以下にしてください。'
+  if (!extensions.has(fileExtension(file.name)))
+    return 'jpg、jpeg、png、heic、heif形式を選択してください。'
+  if (!mimeTypes.has(file.type.toLowerCase()))
+    return '画像の種類を確認できません。対応する画像ファイルを選択してください。'
+  if (file.size > MAX_FILE_SIZE)
+    return 'ファイルサイズは10MB以下にしてください。'
   return null
 }
 
@@ -43,19 +46,46 @@ export interface EntryValues {
   discordUsername: string
   producerName: string
   category: Category | ''
+  entryDivision: EntryDivision | ''
   scoreFile: File | null
   deckFile: File | null
+  beginnerProofFile: File | null
 }
 
-export function validateEntry(values: EntryValues, hasExistingImages = false): Record<string, string> {
+export interface ExistingEntryFiles {
+  score: boolean
+  deck: boolean
+  beginnerProof: boolean
+}
+
+export function validateEntry(
+  values: EntryValues,
+  existingFiles: ExistingEntryFiles = {
+    score: false,
+    deck: false,
+    beginnerProof: false,
+  },
+): Record<string, string> {
   const errors: Record<string, string> = {}
   const discordLength = values.discordUsername.trim().length
   const producerLength = values.producerName.trim().length
-  if (discordLength < 1 || discordLength > 100) errors.discordUsername = '1文字以上100文字以下で入力してください。'
-  if (producerLength < 1 || producerLength > 100) errors.producerName = '1文字以上100文字以下で入力してください。'
-  if (!values.category) errors.category = '応募部門を選択してください。'
-  if (!values.scoreFile && !hasExistingImages) errors.scoreFile = '評価値画像を選択してください。'
-  if (!values.deckFile && !hasExistingImages) errors.deckFile = '最終デッキ画像を選択してください。'
+  if (discordLength < 1 || discordLength > 100)
+    errors.discordUsername = '1文字以上100文字以下で入力してください。'
+  if (producerLength < 1 || producerLength > 100)
+    errors.producerName = '1文字以上100文字以下で入力してください。'
+  if (!values.category) errors.category = '育成キャラクターを選択してください。'
+  if (!values.entryDivision)
+    errors.entryDivision = '応募部門を選択してください。'
+  if (!values.scoreFile && !existingFiles.score)
+    errors.scoreFile = '評価値画像を選択してください。'
+  if (!values.deckFile && !existingFiles.deck)
+    errors.deckFile = '最終デッキ画像を選択してください。'
+  if (
+    values.entryDivision === 'beginner' &&
+    !values.beginnerProofFile &&
+    !existingFiles.beginnerProof
+  )
+    errors.beginnerProofFile = 'PIDとPレベルがわかる画像を選択してください。'
   if (values.scoreFile) {
     const error = validateImageFile(values.scoreFile)
     if (error) errors.scoreFile = error
@@ -63,6 +93,10 @@ export function validateEntry(values: EntryValues, hasExistingImages = false): R
   if (values.deckFile) {
     const error = validateImageFile(values.deckFile)
     if (error) errors.deckFile = error
+  }
+  if (values.beginnerProofFile) {
+    const error = validateImageFile(values.beginnerProofFile)
+    if (error) errors.beginnerProofFile = error
   }
   return errors
 }

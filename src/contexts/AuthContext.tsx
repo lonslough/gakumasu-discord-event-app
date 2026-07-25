@@ -1,5 +1,12 @@
 import type { Session } from '@supabase/supabase-js'
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../types'
 
@@ -23,7 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       return
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
     setProfile(data as Profile | null)
   }
 
