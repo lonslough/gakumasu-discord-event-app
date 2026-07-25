@@ -15,7 +15,7 @@ export function Modal({ title, children, onClose, actions, wide }: Props) {
     const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     document.addEventListener('keydown', close)
     return () => document.removeEventListener('keydown', close)
-  }, [onClose])
+  }, [])
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1} ref={dialog}>
