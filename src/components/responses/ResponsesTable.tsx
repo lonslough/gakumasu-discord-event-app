@@ -103,12 +103,16 @@ export function ResponsesTable({
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
                   </td>
                   <td>
-                    <button
-                      className="link-button"
-                      onClick={() => onOpenImage(row.score_image_path)}
-                    >
-                      評価値・最終所持スキルカード
-                    </button>
+                    {row.score_image_path && !row.deck_image_path ? (
+                      <button
+                        className="link-button"
+                        onClick={() => onOpenImage(row.score_image_path!)}
+                      >
+                        評価値・最終所持スキルカード
+                      </button>
+                    ) : (
+                      <span className="muted">未提出</span>
+                    )}
                     {row.beginner_proof_image_path && (
                       <>
                         {' '}

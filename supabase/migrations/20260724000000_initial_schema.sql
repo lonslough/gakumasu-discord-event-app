@@ -18,7 +18,7 @@ create table public.submissions (
   discord_username text not null check (char_length(discord_username) between 1 and 100),
   producer_name text not null check (char_length(producer_name) between 1 and 100),
   category text not null check (category in ('sena', 'tsubame')),
-  score_image_path text not null,
+  score_image_path text null,
   deck_image_path text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
