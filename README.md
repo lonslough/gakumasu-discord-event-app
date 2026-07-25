@@ -17,14 +17,14 @@ Discordサーバー内で開催する「強化月間」イベントについて�
 
 ### 認証とユーザーID
 
-画面ではユーザーIDとパスワードを入力し、内部では `${normalizedUserId}@app.invalid` をSupabase Authへ渡します。内部メールアドレスは画面に表示しません。
+画面ではユーザーIDとパスワードを入力し、Supabase Authでは内部メールアドレスへ変換します。通常のIDは `${normalizedUserId}@app.invalid`、メールのローカル部として無効になるIDは `u+${base64urlUserId}@app.invalid` を使用します。内部メールアドレスは画面に表示しません。既存形式で有効なIDの変換結果は変えないため、既存ユーザーのログインには影響しません。
 
 ユーザーIDの規則：
 
 - 前後の空白を除去し、英字を小文字へ変換する
 - 長さは3文字以上32文字以下
 - 半角英数字、ピリオド（`.`）、ハイフン（`-`）、アンダースコア（`_`）を使用可能
-- ピリオドは文字の間だけで使用でき、先頭・末尾・連続ピリオドは使用不可
+- ピリオドは先頭・末尾・連続を含め、任意の位置で使用可能
 
 パスワードはEdge Functionで暗号学的に安全な乱数を使って12文字で生成し、英大文字・英小文字・数字を最低1文字ずつ含めます。平文パスワードはDBへ保存せず、作成または再発行直後に一度だけ管理者へ表示します。
 
@@ -111,7 +111,7 @@ Discordサーバー内で開催する「強化月間」イベントについて�
 ## システム構成
 
 - React / TypeScript / Vite / React Router
-- Supabase Auth（画面上はユーザーID、内部で `${userId}@app.invalid` に変換）
+- Supabase Auth（画面上はユーザーID、内部で有効なメールアドレスへ変換）
 - Supabase PostgreSQL + Row Level Security
 - Supabase Storage（非公開 `submission-images` バケット）
 - Supabase Edge Functions（ユーザー作成・パスワード再発行）
@@ -202,7 +202,7 @@ values ('AUTH_USER_UUID', 'admin', 'admin');
 update public.profiles set role = 'admin' where id = 'AUTH_USER_UUID';
 ```
 
-初回ログイン後、必要ならDashboardで管理者自身のパスワードを強いものへ更新してください。管理者IDにも正規化規則（3〜32文字、半角英小文字・数字・`.`・`-`・`_`）が適用されます。ピリオドは先頭・末尾・連続では使用できません。
+初回ログイン後、必要ならDashboardで管理者自身のパスワードを強いものへ更新してください。管理者IDにも正規化規則（3〜32文字、半角英小文字・数字・`.`・`-`・`_`）が適用されます。ピリオドは先頭・末尾・連続を含めて使用できます。
 
 ## 8. ローカル開発
 

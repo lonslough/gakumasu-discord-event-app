@@ -5,7 +5,7 @@ create table public.profiles (
   user_id text unique not null check (
     user_id = lower(user_id)
     and char_length(user_id) between 3 and 32
-    and user_id ~ '^[a-z0-9_-]+(\.[a-z0-9_-]+)*$'
+    and user_id ~ '^[a-z0-9._-]+$'
   ),
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now(),

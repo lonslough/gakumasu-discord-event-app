@@ -19,13 +19,22 @@ export function validateUserId(value: string): string | null {
   const normalized = normalizeUserId(value)
   if (normalized.length < 3 || normalized.length > 32)
     return 'ユーザーIDは3文字以上32文字以下で入力してください。'
-  if (!/^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(normalized))
-    return 'ユーザーIDには半角英数字、ピリオド、ハイフン、アンダースコアのみ使用できます。ピリオドは文字の間に入力してください。'
+  if (!/^[a-z0-9._-]+$/.test(normalized))
+    return 'ユーザーIDには半角英数字、ピリオド、ハイフン、アンダースコアのみ使用できます。'
   return null
 }
 
+const directEmailLocalPart = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/
+
 export function internalEmail(userId: string): string {
-  return `${normalizeUserId(userId)}@app.invalid`
+  const normalized = normalizeUserId(userId)
+  const localPart = directEmailLocalPart.test(normalized)
+    ? normalized
+    : `u+${btoa(normalized)
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replace(/=+$/, '')}`
+  return `${localPart}@app.invalid`
 }
 
 export function fileExtension(name: string): string {
