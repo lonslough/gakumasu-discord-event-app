@@ -17,11 +17,24 @@ export function Modal({ title, children, onClose, actions, wide }: Props) {
     return () => document.removeEventListener('keydown', close)
   }, [])
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1} ref={dialog}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <div
+        className={`modal ${wide ? 'modal-wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabIndex={-1}
+        ref={dialog}
+      >
         <div className="modal-head">
           <h2 id="modal-title">{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="閉じる">×</button>
+          <button className="icon-button" onClick={onClose} aria-label="閉じる">
+            ×
+          </button>
         </div>
         <div>{children}</div>
         {actions && <div className="modal-actions">{actions}</div>}

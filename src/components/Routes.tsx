@@ -7,21 +7,32 @@ import { UsersPage } from '../pages/UsersPage'
 import { ResponsesPage } from '../pages/ResponsesPage'
 
 function Loading() {
-  return <main className="center-page"><div className="spinner" aria-label="読み込み中" /></main>
+  return (
+    <main className="center-page">
+      <div className="spinner" aria-label="読み込み中" />
+    </main>
+  )
 }
 
 function Protected() {
   const { session, loading } = useAuth()
   const location = useLocation()
   if (loading) return <Loading />
-  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
-  return <><Header /><Outlet /></>
+  if (!session)
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  return (
+    <>
+      <Header />
+      <Outlet />
+    </>
+  )
 }
 
 function AdminOnly() {
   const { profile, loading } = useAuth()
   if (loading || !profile) return <Loading />
-  if (profile.role !== 'admin') return <Navigate to="/entry" replace state={{ denied: true }} />
+  if (profile.role !== 'admin')
+    return <Navigate to="/entry" replace state={{ denied: true }} />
   return <Outlet />
 }
 

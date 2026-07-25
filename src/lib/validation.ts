@@ -33,9 +33,12 @@ export function fileExtension(name: string): string {
 }
 
 export function validateImageFile(file: File): string | null {
-  if (!extensions.has(fileExtension(file.name))) return 'jpg、jpeg、png、heic、heif形式を選択してください。'
-  if (!mimeTypes.has(file.type.toLowerCase())) return '画像の種類を確認できません。対応する画像ファイルを選択してください。'
-  if (file.size > MAX_FILE_SIZE) return 'ファイルサイズは10MB以下にしてください。'
+  if (!extensions.has(fileExtension(file.name)))
+    return 'jpg、jpeg、png、heic、heif形式を選択してください。'
+  if (!mimeTypes.has(file.type.toLowerCase()))
+    return '画像の種類を確認できません。対応する画像ファイルを選択してください。'
+  if (file.size > MAX_FILE_SIZE)
+    return 'ファイルサイズは10MB以下にしてください。'
   return null
 }
 
@@ -47,15 +50,22 @@ export interface EntryValues {
   deckFile: File | null
 }
 
-export function validateEntry(values: EntryValues, hasExistingImages = false): Record<string, string> {
+export function validateEntry(
+  values: EntryValues,
+  hasExistingImages = false,
+): Record<string, string> {
   const errors: Record<string, string> = {}
   const discordLength = values.discordUsername.trim().length
   const producerLength = values.producerName.trim().length
-  if (discordLength < 1 || discordLength > 100) errors.discordUsername = '1文字以上100文字以下で入力してください。'
-  if (producerLength < 1 || producerLength > 100) errors.producerName = '1文字以上100文字以下で入力してください。'
+  if (discordLength < 1 || discordLength > 100)
+    errors.discordUsername = '1文字以上100文字以下で入力してください。'
+  if (producerLength < 1 || producerLength > 100)
+    errors.producerName = '1文字以上100文字以下で入力してください。'
   if (!values.category) errors.category = '応募部門を選択してください。'
-  if (!values.scoreFile && !hasExistingImages) errors.scoreFile = '評価値画像を選択してください。'
-  if (!values.deckFile && !hasExistingImages) errors.deckFile = '最終デッキ画像を選択してください。'
+  if (!values.scoreFile && !hasExistingImages)
+    errors.scoreFile = '評価値画像を選択してください。'
+  if (!values.deckFile && !hasExistingImages)
+    errors.deckFile = '最終デッキ画像を選択してください。'
   if (values.scoreFile) {
     const error = validateImageFile(values.scoreFile)
     if (error) errors.scoreFile = error
