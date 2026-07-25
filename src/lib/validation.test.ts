@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_FILE_SIZE,
+  internalEmail,
   normalizeUserId,
   validateEntry,
   validateImageFile,
@@ -13,21 +14,27 @@ const file = (name: string, type: string, size = 10) =>
 describe('ユーザーID', () => {
   it('前後空白を除去し小文字化する', () =>
     expect(normalizeUserId('  Example_User-1 ')).toBe('example_user-1'))
+  it.each(['ab', 'a'.repeat(33), 'user@example', '日本語'])(
+    '不正な値 %s を拒否する',
+    (value) => expect(validateUserId(value)).not.toBeNull(),
+  )
   it.each([
-    'ab',
-    'a'.repeat(33),
-    'user@example',
-    '日本語',
+    'abc',
+    'example-user',
+    'user_123',
+    'user.name',
     '.user',
     'user.',
     'user..name',
-  ])('不正な値 %s を拒否する', (value) =>
-    expect(validateUserId(value)).not.toBeNull(),
+  ])('正しい値 %s を許可する', (value) =>
+    expect(validateUserId(value)).toBeNull(),
   )
-  it.each(['abc', 'example-user', 'user_123', 'user.name'])(
-    '正しい値 %s を許可する',
-    (value) => expect(validateUserId(value)).toBeNull(),
-  )
+  it('既存形式のIDは従来の内部メールを維持する', () =>
+    expect(internalEmail('User.Name')).toBe('user.name@app.invalid'))
+  it('メール形式にできないIDは衝突しない名前空間へエンコードする', () => {
+    expect(internalEmail('username.')).toBe('u+dXNlcm5hbWUu@app.invalid')
+    expect(internalEmail('.username')).not.toBe(internalEmail('username.'))
+  })
 })
 
 describe('画像検証', () => {

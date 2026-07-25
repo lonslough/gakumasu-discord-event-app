@@ -16,9 +16,19 @@ export function json(body: unknown, status = 200) {
 export function normalizeAndValidateUserId(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toLowerCase()
-  return /^(?=.{3,32}$)[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(normalized)
-    ? normalized
-    : null
+  return /^(?=.{3,32}$)[a-z0-9._-]+$/.test(normalized) ? normalized : null
+}
+
+const directEmailLocalPart = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/
+
+export function internalEmailForUserId(userId: string): string {
+  const localPart = directEmailLocalPart.test(userId)
+    ? userId
+    : `u+${btoa(userId)
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replace(/=+$/, '')}`
+  return `${localPart}@app.invalid`
 }
 
 export async function requireAdmin(request: Request) {

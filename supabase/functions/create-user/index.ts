@@ -1,6 +1,7 @@
 import {
   corsHeaders,
   generatePassword,
+  internalEmailForUserId,
   json,
   normalizeAndValidateUserId,
   requireAdmin,
@@ -29,7 +30,7 @@ Deno.serve(async (request) => {
   if (existing) return json({ status: 'already_exists', userId })
   const password = generatePassword()
   const { data, error } = await admin.auth.admin.createUser({
-    email: `${userId}@app.invalid`,
+    email: internalEmailForUserId(userId),
     password,
     email_confirm: true,
   })
