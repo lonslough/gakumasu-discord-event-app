@@ -2,7 +2,11 @@ create extension if not exists pgcrypto;
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  user_id text unique not null check (user_id = lower(user_id) and user_id ~ '^[a-z0-9_-]{3,32}$'),
+  user_id text unique not null check (
+    user_id = lower(user_id)
+    and char_length(user_id) between 3 and 32
+    and user_id ~ '^[a-z0-9_-]+(\.[a-z0-9_-]+)*$'
+  ),
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -16,7 +16,9 @@ export function json(body: unknown, status = 200) {
 export function normalizeAndValidateUserId(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toLowerCase()
-  return /^[a-z0-9_-]{3,32}$/.test(normalized) ? normalized : null
+  return /^(?=.{3,32}$)[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(normalized)
+    ? normalized
+    : null
 }
 
 export async function requireAdmin(request: Request) {
