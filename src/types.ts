@@ -21,6 +21,7 @@ export interface Submission {
   score_image_path: string | null
   deck_image_path: string | null
   beginner_proof_image_path: string | null
+  login_days_proof_image_path: string | null
   created_at: string
   updated_at: string
 }

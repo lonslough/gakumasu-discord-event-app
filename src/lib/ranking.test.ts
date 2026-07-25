@@ -18,6 +18,7 @@ function row(
     score_image_path: `${id}/score/a.jpg`,
     deck_image_path: `${id}/deck/a.jpg`,
     beginner_proof_image_path: null,
+    login_days_proof_image_path: null,
     created_at: updated,
     updated_at: updated,
     profile: { user_id: id },
