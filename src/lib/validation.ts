@@ -47,22 +47,19 @@ export interface EntryValues {
   producerName: string
   category: Category | ''
   entryDivision: EntryDivision | ''
-  scoreFile: File | null
-  deckFile: File | null
+  resultFile: File | null
   beginnerProofFile: File | null
 }
 
 export interface ExistingEntryFiles {
-  score: boolean
-  deck: boolean
+  result: boolean
   beginnerProof: boolean
 }
 
 export function validateEntry(
   values: EntryValues,
   existingFiles: ExistingEntryFiles = {
-    score: false,
-    deck: false,
+    result: false,
     beginnerProof: false,
   },
 ): Record<string, string> {
@@ -76,23 +73,17 @@ export function validateEntry(
   if (!values.category) errors.category = '育成キャラクターを選択してください。'
   if (!values.entryDivision)
     errors.entryDivision = '応募部門を選択してください。'
-  if (!values.scoreFile && !existingFiles.score)
-    errors.scoreFile = '評価値画像を選択してください。'
-  if (!values.deckFile && !existingFiles.deck)
-    errors.deckFile = '最終デッキ画像を選択してください。'
+  if (!values.resultFile && !existingFiles.result)
+    errors.resultFile = '評価値・最終所持スキルカード画像を選択してください。'
   if (
     values.entryDivision === 'beginner' &&
     !values.beginnerProofFile &&
     !existingFiles.beginnerProof
   )
     errors.beginnerProofFile = 'PIDとPレベルがわかる画像を選択してください。'
-  if (values.scoreFile) {
-    const error = validateImageFile(values.scoreFile)
-    if (error) errors.scoreFile = error
-  }
-  if (values.deckFile) {
-    const error = validateImageFile(values.deckFile)
-    if (error) errors.deckFile = error
+  if (values.resultFile) {
+    const error = validateImageFile(values.resultFile)
+    if (error) errors.resultFile = error
   }
   if (values.beginnerProofFile) {
     const error = validateImageFile(values.beginnerProofFile)

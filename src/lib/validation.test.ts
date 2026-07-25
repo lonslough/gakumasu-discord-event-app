@@ -56,12 +56,11 @@ describe('応募フォーム', () => {
           producerName: '',
           category: '',
           entryDivision: '',
-          scoreFile: null,
-          deckFile: null,
+          resultFile: null,
           beginnerProofFile: null,
         }),
       ),
-    ).toHaveLength(6))
+    ).toHaveLength(5))
   it('既存画像を維持できる', () =>
     expect(
       validateEntry(
@@ -70,11 +69,10 @@ describe('応募フォーム', () => {
           producerName: 'producer',
           category: 'sena',
           entryDivision: 'open',
-          scoreFile: null,
-          deckFile: null,
+          resultFile: null,
           beginnerProofFile: null,
         },
-        { score: true, deck: true, beginnerProof: false },
+        { result: true, beginnerProof: false },
       ),
     ).toEqual({}))
   it('初心者部門ではPIDとPレベル画像を必須にする', () =>
@@ -85,11 +83,10 @@ describe('応募フォーム', () => {
           producerName: 'producer',
           category: 'sena',
           entryDivision: 'beginner',
-          scoreFile: null,
-          deckFile: null,
+          resultFile: null,
           beginnerProofFile: null,
         },
-        { score: true, deck: true, beginnerProof: false },
+        { result: true, beginnerProof: false },
       ),
     ).toHaveProperty('beginnerProofFile'))
   it('初心者部門以外ではPIDとPレベル画像を要求しない', () =>
@@ -100,11 +97,10 @@ describe('応募フォーム', () => {
           producerName: 'producer',
           category: 'sena',
           entryDivision: 'switch_off',
-          scoreFile: null,
-          deckFile: null,
+          resultFile: null,
           beginnerProofFile: null,
         },
-        { score: true, deck: true, beginnerProof: false },
+        { result: true, beginnerProof: false },
       ),
     ).toEqual({}))
 })
