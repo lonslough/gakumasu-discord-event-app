@@ -18,7 +18,7 @@ export interface Submission {
   producer_name: string
   category: Category
   entry_division: EntryDivision
-  score_image_path: string
+  score_image_path: string | null
   deck_image_path: string | null
   beginner_proof_image_path: string | null
   created_at: string

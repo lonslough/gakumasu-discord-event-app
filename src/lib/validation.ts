@@ -52,14 +52,12 @@ export interface EntryValues {
 }
 
 export interface ExistingEntryFiles {
-  result: boolean
   beginnerProof: boolean
 }
 
 export function validateEntry(
   values: EntryValues,
   existingFiles: ExistingEntryFiles = {
-    result: false,
     beginnerProof: false,
   },
 ): Record<string, string> {
@@ -73,8 +71,6 @@ export function validateEntry(
   if (!values.category) errors.category = '育成キャラクターを選択してください。'
   if (!values.entryDivision)
     errors.entryDivision = '応募部門を選択してください。'
-  if (!values.resultFile && !existingFiles.result)
-    errors.resultFile = '評価値・最終所持スキルカード画像を選択してください。'
   if (
     values.entryDivision === 'beginner' &&
     !values.beginnerProofFile &&

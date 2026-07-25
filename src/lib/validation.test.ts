@@ -60,20 +60,17 @@ describe('応募フォーム', () => {
           beginnerProofFile: null,
         }),
       ),
-    ).toHaveLength(5))
-  it('既存画像を維持できる', () =>
+    ).toHaveLength(4))
+  it('評価値・最終所持スキルカード画像は未添付でも送信できる', () =>
     expect(
-      validateEntry(
-        {
-          discordUsername: 'discord',
-          producerName: 'producer',
-          category: 'sena',
-          entryDivision: 'open',
-          resultFile: null,
-          beginnerProofFile: null,
-        },
-        { result: true, beginnerProof: false },
-      ),
+      validateEntry({
+        discordUsername: 'discord',
+        producerName: 'producer',
+        category: 'sena',
+        entryDivision: 'open',
+        resultFile: null,
+        beginnerProofFile: null,
+      }),
     ).toEqual({}))
   it('初心者部門ではPIDとPレベル画像を必須にする', () =>
     expect(
@@ -86,7 +83,7 @@ describe('応募フォーム', () => {
           resultFile: null,
           beginnerProofFile: null,
         },
-        { result: true, beginnerProof: false },
+        { beginnerProof: false },
       ),
     ).toHaveProperty('beginnerProofFile'))
   it('初心者部門以外ではPIDとPレベル画像を要求しない', () =>
@@ -100,7 +97,7 @@ describe('応募フォーム', () => {
           resultFile: null,
           beginnerProofFile: null,
         },
-        { result: true, beginnerProof: false },
+        { beginnerProof: false },
       ),
     ).toEqual({}))
 })
