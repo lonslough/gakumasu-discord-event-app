@@ -292,12 +292,12 @@ export function EntryPage() {
         <div className="page-title-actions">
           <button
             type="button"
-            className="button secondary small"
+            className="button rules-button small"
             onClick={() => setShowingRules(true)}
           >
             イベントルールを表示
           </button>
-          <span className="step-pill">入力内容は再送信で更新可能</span>
+          {/* <span className="step-pill">入力内容は再送信で更新可能</span> */}
         </div>
       </div>
       {(location.state as { denied?: boolean } | null)?.denied && (
