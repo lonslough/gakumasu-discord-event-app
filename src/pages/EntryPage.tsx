@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
@@ -106,6 +106,9 @@ export function EntryPage() {
   const [message, setMessage] = useState('')
   const [failure, setFailure] = useState('')
   const [rules, setRules] = useState('')
+  const [rulesLoading, setRulesLoading] = useState(true)
+  const [showingRules, setShowingRules] = useState(false)
+  const rulesAutoShown = useRef(false)
 
   const load = useCallback(async () => {
     if (!session) return
@@ -164,9 +167,15 @@ export function EntryPage() {
         .single()
       if (error) setFailure('ルール説明の読み込みに失敗しました。')
       else setRules(data.rules_description)
+      setRulesLoading(false)
     }
     void loadRules()
   }, [])
+  useEffect(() => {
+    if (loading || rulesLoading || existing || rulesAutoShown.current) return
+    rulesAutoShown.current = true
+    setShowingRules(true)
+  }, [existing, loading, rulesLoading])
 
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault()
@@ -280,7 +289,16 @@ export function EntryPage() {
           <h1>回答入力</h1>
           <p>イベントへの応募情報と確認画像を登録してください。</p>
         </div>
-        <span className="step-pill">入力内容は再送信で更新可能</span>
+        <div className="page-title-actions">
+          <button
+            type="button"
+            className="button secondary small"
+            onClick={() => setShowingRules(true)}
+          >
+            イベントルールを表示
+          </button>
+          <span className="step-pill">入力内容は再送信で更新可能</span>
+        </div>
       </div>
       {(location.state as { denied?: boolean } | null)?.denied && (
         <div className="notice error">管理画面を表示する権限がありません。</div>
@@ -300,15 +318,6 @@ export function EntryPage() {
           {failure}
         </div>
       )}
-      <section className="card rules-section" aria-labelledby="event-rules-title">
-        <p className="eyebrow">EVENT RULES</p>
-        <h2 id="event-rules-title">イベントルール</h2>
-        {rules ? (
-          <p className="rules-description">{rules}</p>
-        ) : (
-          <p className="muted">現在、ルール説明は登録されていません。</p>
-        )}
-      </section>
       <form onSubmit={requestSubmit} noValidate>
         <section className="card form-section">
           <div className="section-number">01</div>
@@ -560,6 +569,27 @@ export function EntryPage() {
               ? 'すでに登録されている回答を上書きします。以前の内容には戻せません。よろしいですか？'
               : 'この内容で回答を送信します。よろしいですか？'}
           </p>
+        </Modal>
+      )}
+      {showingRules && (
+        <Modal
+          title="イベントルール"
+          wide
+          onClose={() => setShowingRules(false)}
+          actions={
+            <button
+              className="button primary"
+              onClick={() => setShowingRules(false)}
+            >
+              確認しました
+            </button>
+          }
+        >
+          {rules ? (
+            <p className="rules-description rules-modal-description">{rules}</p>
+          ) : (
+            <p className="muted">現在、ルール説明は登録されていません。</p>
+          )}
         </Modal>
       )}
     </main>
