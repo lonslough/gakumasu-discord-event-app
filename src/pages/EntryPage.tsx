@@ -105,6 +105,7 @@ export function EntryPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [failure, setFailure] = useState('')
+  const [rules, setRules] = useState('')
 
   const load = useCallback(async () => {
     if (!session) return
@@ -154,6 +155,18 @@ export function EntryPage() {
   useEffect(() => {
     void load()
   }, [load])
+  useEffect(() => {
+    const loadRules = async () => {
+      const { data, error } = await supabase
+        .from('event_settings')
+        .select('rules_description')
+        .eq('id', true)
+        .single()
+      if (error) setFailure('ルール説明の読み込みに失敗しました。')
+      else setRules(data.rules_description)
+    }
+    void loadRules()
+  }, [])
 
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault()
@@ -287,6 +300,15 @@ export function EntryPage() {
           {failure}
         </div>
       )}
+      <section className="card rules-section" aria-labelledby="event-rules-title">
+        <p className="eyebrow">EVENT RULES</p>
+        <h2 id="event-rules-title">イベントルール</h2>
+        {rules ? (
+          <p className="rules-description">{rules}</p>
+        ) : (
+          <p className="muted">現在、ルール説明は登録されていません。</p>
+        )}
+      </section>
       <form onSubmit={requestSubmit} noValidate>
         <section className="card form-section">
           <div className="section-number">01</div>
