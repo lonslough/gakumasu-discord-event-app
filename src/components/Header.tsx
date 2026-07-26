@@ -18,6 +18,9 @@ export function Header() {
         {profile?.role === 'admin' && (
           <NavLink to="/admin/responses">回答結果</NavLink>
         )}
+        {profile?.role === 'admin' && (
+          <NavLink to="/admin/rules">ルール説明変更</NavLink>
+        )}
       </nav>
       <div className="account">
         <span>
