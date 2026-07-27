@@ -283,6 +283,12 @@ export function EntryPage() {
     )
   return (
     <main className="page narrow">
+      <div className="entry-title-art" aria-hidden="true">
+        <img
+          src={`${import.meta.env.BASE_URL}images/tsubame-sena-title2.png`}
+          alt=""
+        />
+      </div>
       <div className="page-title">
         <div>
           <p className="eyebrow">EVENT ENTRY</p>
