@@ -18,6 +18,7 @@ export function UsersPage() {
   const [credential, setCredential] = useState<Credential | null>(null)
   const [existingId, setExistingId] = useState('')
   const [resetTarget, setResetTarget] = useState('')
+  const [copiedInvitation, setCopiedInvitation] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error: loadError } = await supabase.rpc('list_user_summaries')
@@ -68,6 +69,15 @@ export function UsersPage() {
     const target = resetTarget
     setResetTarget('')
     void invoke('reset-user-password', target)
+  }
+  const copyInvitation = async (issued: Credential) => {
+    const invitation = `ご参加ありがとうございます。
+以下の情報からログインをしていただき回答をお願いします！
+ID：${issued.userId}
+🔑：||${issued.password}||
+URL：https://lonslough.github.io/gakumasu-server-event-app`
+    await navigator.clipboard.writeText(invitation)
+    setCopiedInvitation(true)
   }
 
   return (
@@ -179,11 +189,17 @@ export function UsersPage() {
       {credential && (
         <Modal
           title="ログイン情報を発行しました"
-          onClose={() => setCredential(null)}
+          onClose={() => {
+            setCredential(null)
+            setCopiedInvitation(false)
+          }}
           actions={
             <button
               className="button primary"
-              onClick={() => setCredential(null)}
+              onClick={() => {
+                setCredential(null)
+                setCopiedInvitation(false)
+              }}
             >
               閉じる
             </button>
@@ -208,6 +224,17 @@ export function UsersPage() {
               </button>
             </dd>
           </dl>
+          <button
+            className="button secondary full"
+            onClick={() => void copyInvitation(credential)}
+          >
+            案内文を丸ごとコピー
+          </button>
+          {copiedInvitation && (
+            <p className="success-text" role="status">
+              案内文をコピーしました。
+            </p>
+          )}
           <p className="success-text">新しいユーザーを登録しました。</p>
         </Modal>
       )}
