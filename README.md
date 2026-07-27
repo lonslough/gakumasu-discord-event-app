@@ -245,6 +245,15 @@ docker compose --profile tools run --rm --service-ports supabase functions serve
 
 ローカル管理画面Supabase Studioは `http://localhost:54323`、受信メール確認画面Inbucketは `http://localhost:54324` です。
 
+`supabase start`または`supabase db reset`では、[supabase/seed.sql](supabase/seed.sql)から次のローカル専用アカウントが作成されます。
+
+| ユーザーID | パスワード | 権限 |
+|---|---|---|
+| `test` | `test` | admin |
+| `user` | `user` | user |
+
+これらは動作確認専用の弱い認証情報です。本番Workflowは`supabase db push`に`--include-seed`を指定していないため、本番Supabaseへは登録されません。本番へ同じ認証情報を作成しないでください。
+
 Docker Desktop for Macで標準以外のDockerソケットを使用している場合は、起動前に指定できます。
 
 ```bash
