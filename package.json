@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.0",
+    "browser-image-compression": "^2.0.2",
+    "heic2any": "^0.0.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3"
