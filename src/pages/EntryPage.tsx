@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
+import { compressImageForUpload } from '../lib/imageCompression'
 import { supabase } from '../lib/supabase'
 import {
   fileExtension,
@@ -59,7 +60,7 @@ function FileField({
       <label className={`file-drop ${error ? 'invalid' : ''}`} htmlFor={id}>
         <span className="upload-icon">↑</span>
         <strong>{file ? file.name : '画像を選択'}</strong>
-        <small>JPG / PNG / HEIC / HEIF・最大10MB</small>
+        <small>JPG / PNG / HEIC / HEIF・最大10MB（送信時に自動圧縮）</small>
         <input
           id={id}
           type="file"
@@ -191,10 +192,20 @@ export function EntryPage() {
     file: File,
     kind: 'score' | 'beginner-proof' | 'login-days-proof',
   ) => {
-    const path = `${session!.user.id}/${kind}/${crypto.randomUUID()}.${fileExtension(file.name)}`
+    let compressed: File
+    try {
+      compressed = await compressImageForUpload(file)
+    } catch {
+      throw new Error('compression')
+    }
+    const path = `${session!.user.id}/${kind}/${crypto.randomUUID()}.${fileExtension(compressed.name)}`
     const { error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, compressed, {
+        contentType: compressed.type,
+        cacheControl: '3600',
+        upsert: false,
+      })
     if (error) throw new Error('upload')
     return path
   }
@@ -266,8 +277,12 @@ export function EntryPage() {
     } catch (error) {
       if (uploaded.length) await supabase.storage.from(bucket).remove(uploaded)
       setFailure(
-        error instanceof Error && error.message === 'upload'
-          ? '画像のアップロードに失敗しました。通信状態を確認してください。'
+        error instanceof Error
+          ? error.message === 'compression'
+            ? '画像を圧縮できませんでした。別の画像形式でお試しください。'
+            : error.message === 'upload'
+              ? '画像のアップロードに失敗しました。通信状態を確認してください。'
+              : '回答の保存に失敗しました。入力内容は維持されています。'
           : '回答の保存に失敗しました。入力内容は維持されています。',
       )
     } finally {
