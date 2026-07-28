@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReviewModal,
   type ReviewImages,
@@ -25,9 +25,21 @@ import {
 } from '../lib/adminResponses'
 import { rankedByCategory } from '../lib/ranking'
 import { supabase } from '../lib/supabase'
-import type { AdminSubmission, VerificationStatus } from '../types'
+import type { AdminSubmission, Submission, VerificationStatus } from '../types'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
+
+interface CachedReviewImages {
+  fingerprint: string
+  images: ReviewImages
+  complete: boolean
+}
+
+const revokeImageUrls = (images: ReviewImages) => {
+  Object.values(images).forEach((image) => {
+    if (image) URL.revokeObjectURL(image.url)
+  })
+}
 
 export function ResponsesPage() {
   const { session } = useAuth()
@@ -45,6 +57,8 @@ export function ResponsesPage() {
   const [reviewImages, setReviewImages] = useState<ReviewImages>({})
   const [imagesLoading, setImagesLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const imageCacheRef = useRef(new Map<string, CachedReviewImages>())
+  const imageRequestRef = useRef(0)
 
   const load = useCallback(async () => {
     setError('')
@@ -62,6 +76,11 @@ export function ResponsesPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    const cache = imageCacheRef.current
+    return () => cache.forEach(({ images }) => revokeImageUrls(images))
+  }, [])
 
   const filtered = useMemo(
     () =>
@@ -81,6 +100,7 @@ export function ResponsesPage() {
   )
 
   const edit = async (row: AdminSubmission) => {
+    const requestId = ++imageRequestRef.current
     setEditing(row)
     setScore(row.review?.confirmed_score?.toString() ?? '')
     setStatus(row.review?.verification_status ?? 'pending')
@@ -88,25 +108,65 @@ export function ResponsesPage() {
     setReviewImages({})
     setImagesLoading(true)
 
-    const paths = {
-      result: hasResultImage(row) ? row.score_image_path : null,
-      beginnerProof: row.beginner_proof_image_path,
-      loginDaysProof: row.login_days_proof_image_path,
+    const { data: latestSubmission, error: latestSubmissionError } =
+      await supabase.from('submissions').select('*').eq('id', row.id).single()
+    if (latestSubmissionError) {
+      if (requestId === imageRequestRef.current) {
+        setError('提出画像の更新状態を確認できませんでした。')
+        setImagesLoading(false)
+      }
+      return
     }
-    const signedEntries = await Promise.all(
+    const current = latestSubmission
+      ? ({ ...row, ...(latestSubmission as Submission) } as AdminSubmission)
+      : row
+    if (requestId !== imageRequestRef.current) return
+    setEditing(current)
+
+    const paths = {
+      result: hasResultImage(current) ? current.score_image_path : null,
+      beginnerProof: current.beginner_proof_image_path,
+      loginDaysProof: current.login_days_proof_image_path,
+    }
+    const fingerprint = JSON.stringify(paths)
+    const cached = imageCacheRef.current.get(row.id)
+    if (cached?.fingerprint === fingerprint && cached.complete) {
+      setReviewImages(cached.images)
+      setImagesLoading(false)
+      return
+    }
+
+    const imageEntries = await Promise.all(
       Object.entries(paths).map(async ([key, path]) => {
         if (!path) return [key, undefined] as const
-        const { data, error: signedError } = await supabase.storage
+        const { data, error: downloadError } = await supabase.storage
           .from('submission-images')
-          .createSignedUrl(path, 300)
-        if (signedError) {
-          setError('一部の画像を開けませんでした。')
+          .download(path)
+        if (downloadError) {
           return [key, undefined] as const
         }
-        return [key, { url: data.signedUrl, name: baseName(path) }] as const
+        return [
+          key,
+          { url: URL.createObjectURL(data), name: baseName(path) },
+        ] as const
       }),
     )
-    setReviewImages(Object.fromEntries(signedEntries) as ReviewImages)
+    const images = Object.fromEntries(imageEntries) as ReviewImages
+    const failed =
+      Object.values(paths).filter(Boolean).length !==
+      Object.values(images).filter(Boolean).length
+    if (requestId !== imageRequestRef.current) {
+      revokeImageUrls(images)
+      return
+    }
+    if (cached) revokeImageUrls(cached.images)
+    imageCacheRef.current.set(row.id, {
+      fingerprint,
+      images,
+      complete: !failed,
+    })
+    if (failed) setError('一部の画像を開けませんでした。')
+    setReviewImages(images)
     setImagesLoading(false)
   }
 
@@ -232,6 +292,7 @@ export function ResponsesPage() {
           onNoteChange={setNote}
           onSave={() => void saveReview()}
           onClose={() => {
+            imageRequestRef.current += 1
             setEditing(null)
             setReviewImages({})
           }}
