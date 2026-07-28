@@ -26,8 +26,6 @@ const basename = (path: string) => path.split('/').pop() ?? path
 function FileField({
   id,
   label,
-  description,
-  required = true,
   file,
   existing,
   error,
@@ -35,57 +33,135 @@ function FileField({
 }: {
   id: string
   label: string
-  description?: string
-  required?: boolean
   file: File | null
-  existing?: { name: string; url: string } | null
+  existing?: { name: string; path: string } | null
   error?: string
   onChange: (file: File | null) => void
 }) {
-  const preview =
-    file && ['image/jpeg', 'image/png'].includes(file.type)
-      ? URL.createObjectURL(file)
-      : existing?.url
+  const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
+  const [showExisting, setShowExisting] = useState(false)
+  const [existingUrl, setExistingUrl] = useState<string | null>(null)
+  const [existingLoading, setExistingLoading] = useState(false)
+  const [existingError, setExistingError] = useState('')
+
+  useEffect(() => {
+    if (!file || !['image/jpeg', 'image/png'].includes(file.type)) {
+      setSelectedPreview(null)
+      return
+    }
+    const objectUrl = URL.createObjectURL(file)
+    setSelectedPreview(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [file])
+
+  useEffect(() => {
+    setShowExisting(false)
+    setExistingUrl(null)
+    setExistingError('')
+  }, [existing?.path])
+
+  const toggleExisting = async () => {
+    if (showExisting) {
+      setShowExisting(false)
+      return
+    }
+    if (existingUrl) {
+      setShowExisting(true)
+      return
+    }
+    if (!existing) return
+    setExistingLoading(true)
+    setExistingError('')
+    const { data, error: signedError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(existing.path, 600)
+    setExistingLoading(false)
+    if (signedError) {
+      setExistingError('回答済み画像を読み込めませんでした。')
+      return
+    }
+    setExistingUrl(data.signedUrl)
+    setShowExisting(true)
+  }
+
   return (
     <div className="file-block">
-      <label htmlFor={id}>
-        {label}{' '}
-        {required ? (
-          <span className="required">必須</span>
-        ) : (
-          <span className="optional">任意</span>
-        )}
-      </label>
-      {description && <p className="help">{description}</p>}
-      <label className={`file-drop ${error ? 'invalid' : ''}`} htmlFor={id}>
-        <span className="upload-icon">↑</span>
-        <strong>{file ? file.name : '画像を選択'}</strong>
-        <small>JPG / PNG / HEIC / HEIF・最大10MB（送信時に自動圧縮）</small>
-        <input
-          id={id}
-          type="file"
-          accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif"
-          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        />
-      </label>
-      {preview && (
-        <a href={preview} target="_blank" rel="noreferrer">
-          <img
-            className="entry-preview"
-            src={preview}
-            alt={`${label}のプレビュー`}
-          />
-        </a>
-      )}
-      {!file && existing && (
-        <p className="existing-file">
-          登録済み:{' '}
-          <a href={existing.url} target="_blank" rel="noreferrer">
-            {existing.name}
-          </a>
-        </p>
-      )}
-      {error && <p className="field-error">{error}</p>}
+      <div className="image-upload-column selected-image-column">
+        <p className="image-column-title">選択した画像</p>
+        <div className="image-column-actions">
+          <div className="file-select-row">
+            <label className="button secondary" htmlFor={id}>
+              画像を選択
+            </label>
+            <input
+              className="visually-hidden-file"
+              id={id}
+              type="file"
+              accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif"
+              onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+            />
+            <span className="selected-file-name">{file?.name ?? '未選択'}</span>
+          </div>
+          <small className="file-help">
+            JPG / PNG / HEIC / HEIF・最大10MB（送信時に自動圧縮）
+          </small>
+        </div>
+        <div className="image-column-media">
+          {selectedPreview ? (
+            <a href={selectedPreview} target="_blank" rel="noreferrer">
+              <img
+                className="entry-preview"
+                src={selectedPreview}
+                alt={`${label}の選択画像プレビュー`}
+              />
+            </a>
+          ) : (
+            <div className="image-placeholder">画像は未選択です</div>
+          )}
+        </div>
+        {error && <p className="field-error">{error}</p>}
+      </div>
+      <div className="image-upload-column existing-image-column">
+        <p className="image-column-title">回答済み画像</p>
+        <div className="image-column-actions">
+          {existing && (
+            <button
+              type="button"
+              className="button secondary small"
+              aria-expanded={showExisting}
+              disabled={existingLoading}
+              onClick={() => void toggleExisting()}
+            >
+              {existingLoading
+                ? '読み込み中…'
+                : showExisting
+                  ? '回答済み画像を閉じる'
+                  : '回答済み画像を確認する'}
+            </button>
+          )}
+        </div>
+        <div className="image-column-media">
+          {existing && showExisting && existingUrl ? (
+            <div className="existing-file">
+              <a href={existingUrl} target="_blank" rel="noreferrer">
+                <img
+                  className="entry-preview"
+                  src={existingUrl}
+                  alt={`${label}の回答済み画像`}
+                />
+                <span>{existing.name}</span>
+              </a>
+            </div>
+          ) : (
+            <div className="image-placeholder">
+              {existing
+                ? 'ボタンを押すと表示します'
+                : '回答済み画像はありません'}
+            </div>
+          )}
+        </div>
+        {existingError && <p className="field-error">{existingError}</p>}
+      </div>
     </div>
   )
 }
@@ -95,11 +171,6 @@ export function EntryPage() {
   const location = useLocation()
   const [values, setValues] = useState<EntryValues>(initialValues)
   const [existing, setExisting] = useState<Submission | null>(null)
-  const [urls, setUrls] = useState<{
-    result?: string
-    beginnerProof?: string
-    loginDaysProof?: string
-  } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
@@ -131,28 +202,6 @@ export function EntryPage() {
         beginnerProofFile: null,
         loginDaysProofFile: null,
       })
-      const resultPath = submission.deck_image_path
-        ? null
-        : submission.score_image_path
-      const imagePaths = [
-        resultPath,
-        submission.beginner_proof_image_path,
-        submission.login_days_proof_image_path,
-      ].filter((path): path is string => Boolean(path))
-      if (imagePaths.length) {
-        const { data: signed } = await supabase.storage
-          .from(bucket)
-          .createSignedUrls(imagePaths, 600)
-        const signedUrlFor = (path: string | null) => {
-          if (!path) return undefined
-          return signed?.[imagePaths.indexOf(path)]?.signedUrl ?? undefined
-        }
-        setUrls({
-          result: signedUrlFor(resultPath),
-          beginnerProof: signedUrlFor(submission.beginner_proof_image_path),
-          loginDaysProof: signedUrlFor(submission.login_days_proof_image_path),
-        })
-      } else setUrls(null)
     }
     setLoading(false)
   }, [session])
@@ -475,86 +524,132 @@ export function EntryPage() {
           <div className="section-number">04</div>
           <div className="section-content">
             <h2>画像アップロード</h2>
-            <figure className="image-sample">
-              <figcaption>
-                評価値と最終所持スキルカードが同時に確認できる、次のような画像を添付してください。
-              </figcaption>
-              <img
-                src={`${import.meta.env.BASE_URL}sample/score_sample.png`}
-                alt="評価値・最終所持スキルカード画像の見本"
-              />
-            </figure>
-            <FileField
-              id="result"
-              label="評価値・最終所持スキルカード"
-              required={false}
-              file={values.resultFile}
-              existing={
-                existing?.score_image_path &&
-                urls?.result &&
-                !existing.deck_image_path
-                  ? {
-                      name: basename(existing.score_image_path),
-                      url: urls.result,
-                    }
-                  : null
-              }
-              error={errors.resultFile}
-              onChange={(file) => setValues({ ...values, resultFile: file })}
-            />
+            <div className="image-upload-group">
+              <div className="image-upload-heading">
+                <h3>
+                  評価値・最終所持スキルカード
+                  <span className="optional">任意</span>
+                </h3>
+                <p className="help">
+                  評価値と最終所持スキルカードが同時に確認できる画像を添付してください
+                </p>
+              </div>
+              <div className="image-upload-row">
+                <FileField
+                  id="result"
+                  label="評価値・最終所持スキルカード"
+                  file={values.resultFile}
+                  existing={
+                    existing?.score_image_path && !existing.deck_image_path
+                      ? {
+                          name: basename(existing.score_image_path),
+                          path: existing.score_image_path,
+                        }
+                      : null
+                  }
+                  error={errors.resultFile}
+                  onChange={(file) =>
+                    setValues({ ...values, resultFile: file })
+                  }
+                />
+                <figure className="image-sample">
+                  <figcaption>アップロード画像例</figcaption>
+                  <div className="image-column-actions" aria-hidden="true" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}sample/score_sample.png`}
+                    alt="評価値・最終所持スキルカード画像の見本"
+                  />
+                </figure>
+              </div>
+            </div>
             {values.entryDivision === 'beginner' && (
               <div className="evidence-fields">
-                <figure className="image-sample">
-                  <figcaption>PID・Pレベル確認画像のサンプル</figcaption>
-                  <img
-                    src={`${import.meta.env.BASE_URL}sample/PID_Plv_sample.PNG`}
-                    alt="PID・Pレベル確認画像の見本"
-                  />
-                </figure>
-                <FileField
-                  id="beginner-proof"
-                  label="PID・Pレベル確認画像"
-                  description="PIDとPレベルの両方がわかる画像を添付してください"
-                  file={values.beginnerProofFile}
-                  existing={
-                    existing?.beginner_proof_image_path && urls?.beginnerProof
-                      ? {
-                          name: basename(existing.beginner_proof_image_path),
-                          url: urls.beginnerProof,
-                        }
-                      : null
-                  }
-                  error={errors.beginnerProofFile}
-                  onChange={(file) =>
-                    setValues({ ...values, beginnerProofFile: file })
-                  }
-                />
-                <figure className="image-sample">
-                  <figcaption>出席日数確認のサンプル</figcaption>
-                  <img
-                    src={`${import.meta.env.BASE_URL}sample/login_days_sample.png`}
-                    alt="出席日数画像の見本"
-                  />
-                </figure>
-                <FileField
-                  id="login-days-proof"
-                  label="出席日数確認画像"
-                  description="通知表の出席日数がわかる画像を添付してください"
-                  file={values.loginDaysProofFile}
-                  existing={
-                    existing?.login_days_proof_image_path &&
-                    urls?.loginDaysProof
-                      ? {
-                          name: basename(existing.login_days_proof_image_path),
-                          url: urls.loginDaysProof,
-                        }
-                      : null
-                  }
-                  error={errors.loginDaysProofFile}
-                  onChange={(file) =>
-                    setValues({ ...values, loginDaysProofFile: file })
-                  }
-                />
+                <div className="image-upload-group">
+                  <div className="image-upload-heading">
+                    <h3>
+                      PID・Pレベル確認画像
+                      <span className="required">必須</span>
+                    </h3>
+                    <p className="help">
+                      PIDとPレベルの両方がわかる画像を添付してください
+                    </p>
+                  </div>
+                  <div className="image-upload-row">
+                    <FileField
+                      id="beginner-proof"
+                      label="PID・Pレベル確認画像"
+                      file={values.beginnerProofFile}
+                      existing={
+                        existing?.beginner_proof_image_path
+                          ? {
+                              name: basename(
+                                existing.beginner_proof_image_path,
+                              ),
+                              path: existing.beginner_proof_image_path,
+                            }
+                          : null
+                      }
+                      error={errors.beginnerProofFile}
+                      onChange={(file) =>
+                        setValues({ ...values, beginnerProofFile: file })
+                      }
+                    />
+                    <figure className="image-sample">
+                      <figcaption>アップロード画像例</figcaption>
+                      <div
+                        className="image-column-actions"
+                        aria-hidden="true"
+                      />
+                      <img
+                        src={`${import.meta.env.BASE_URL}sample/PID_Plv_sample.PNG`}
+                        alt="PID・Pレベル確認画像の見本"
+                      />
+                    </figure>
+                  </div>
+                </div>
+                <div className="image-upload-group">
+                  <div className="image-upload-heading">
+                    <h3>
+                      出席日数確認画像
+                      <span className="required">必須</span>
+                    </h3>
+                    <p className="help">
+                      通知表の出席日数がわかる画像を添付してください
+                    </p>
+                  </div>
+                  <div className="image-upload-row">
+                    <FileField
+                      id="login-days-proof"
+                      label="出席日数確認画像"
+                      file={values.loginDaysProofFile}
+                      existing={
+                        existing?.login_days_proof_image_path
+                          ? {
+                              name: basename(
+                                existing.login_days_proof_image_path,
+                              ),
+                              path: existing.login_days_proof_image_path,
+                            }
+                          : null
+                      }
+                      error={errors.loginDaysProofFile}
+                      onChange={(file) =>
+                        setValues({ ...values, loginDaysProofFile: file })
+                      }
+                    />
+                    <figure className="image-sample">
+                      <figcaption>アップロード画像例</figcaption>
+                      <div
+                        className="image-column-actions"
+                        aria-hidden="true"
+                      />
+                      <img
+                        src={`${import.meta.env.BASE_URL}sample/login_days_sample.png`}
+                        alt="出席日数画像の見本"
+                      />
+                    </figure>
+                  </div>
+                </div>
               </div>
             )}
           </div>
