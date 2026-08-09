@@ -74,7 +74,7 @@ export function UsersPage() {
     const invitation = `ご参加ありがとうございます。
 以下の情報からログインをしていただき回答をお願いします！
 ID：\`${issued.userId}\`
-🔑：||${issued.password}||
+🔑：\`${issued.password}\`
 URL：https://lonslough.github.io/gakumasu-server-event-app`
     await navigator.clipboard.writeText(invitation)
     setCopiedInvitation(true)
