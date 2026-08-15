@@ -7,6 +7,15 @@ export interface CharacterOption {
   shortName: string
   enabled: boolean
 }
+
+export interface EventSettings {
+  rules_description: string
+  submission_start_at: string | null
+  submission_end_at: string | null
+  server_now: string
+  accepting_submissions: boolean
+  character_options: CharacterOption[]
+}
 export type EntryDivision = 'open' | 'switch_off' | 'beginner'
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
 
