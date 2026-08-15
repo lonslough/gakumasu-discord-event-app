@@ -983,6 +983,26 @@ td small {
   font-size: 16px;
 }
 
+.ranking-divisions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.division-ranking {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(14, 19, 34, 0.55);
+}
+
+.division-ranking h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
 .ranking-title span {
   color: var(--muted);
   font-size: 10px;
@@ -1240,6 +1260,10 @@ td small {
   .ranking-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .ranking-divisions {
+    grid-template-columns: 1fr;
   }
 }
 

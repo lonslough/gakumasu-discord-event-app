@@ -23,11 +23,19 @@ import {
   type ResponseSort,
   type StatusFilter,
 } from '../lib/adminResponses'
-import { rankedByCategory } from '../lib/ranking'
+import { rankedByCategoryAndDivision } from '../lib/ranking'
 import { supabase } from '../lib/supabase'
-import type { AdminSubmission, Submission, VerificationStatus } from '../types'
+import type {
+  AdminSubmission,
+  Category,
+  EntryDivision,
+  Submission,
+  VerificationStatus,
+} from '../types'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
+const rankingCategories: Category[] = ['sena', 'tsubame']
+const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 interface CachedReviewImages {
   fingerprint: string
@@ -88,10 +96,18 @@ export function ResponsesPage() {
     [rows, search, categoryFilter, statusFilter, sort],
   )
   const rankings = useMemo(
-    () => ({
-      sena: rankedByCategory(rows, 'sena'),
-      tsubame: rankedByCategory(rows, 'tsubame'),
-    }),
+    () =>
+      Object.fromEntries(
+        rankingCategories.map((category) => [
+          category,
+          Object.fromEntries(
+            rankingDivisions.map((division) => [
+              division,
+              rankedByCategoryAndDivision(rows, category, division),
+            ]),
+          ) as Record<EntryDivision, AdminSubmission[]>,
+        ]),
+      ) as Record<Category, Record<EntryDivision, AdminSubmission[]>>,
     [rows],
   )
   const stats = useMemo(
