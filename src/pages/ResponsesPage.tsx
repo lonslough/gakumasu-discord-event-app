@@ -6,11 +6,7 @@ import {
 import { ResponseRankings } from '../components/responses/ResponseRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
-import {
-  categoryName,
-  entryDivisionName,
-  statusName,
-} from '../components/responses/labels'
+import { entryDivisionName, statusName } from '../components/responses/labels'
 import { useAuth } from '../contexts/AuthContext'
 import {
   csvCell,
@@ -24,17 +20,18 @@ import {
   type StatusFilter,
 } from '../lib/adminResponses'
 import { rankedByCategoryAndDivision } from '../lib/ranking'
+import { characterLabel, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
 import type {
   AdminSubmission,
   Category,
+  CharacterOption,
   EntryDivision,
   Submission,
   VerificationStatus,
 } from '../types'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
-const rankingCategories: Category[] = ['sena', 'tsubame']
 const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 interface CachedReviewImages {
@@ -53,6 +50,7 @@ export function ResponsesPage() {
   const { session } = useAuth()
   const [rows, setRows] = useState<AdminSubmission[]>([])
   const [registered, setRegistered] = useState(0)
+  const [characters, setCharacters] = useState<CharacterOption[]>(defaultCharacterOptions)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -70,15 +68,18 @@ export function ResponsesPage() {
 
   const load = useCallback(async () => {
     setError('')
-    const [{ data, error: rowsError }, { data: countData }] = await Promise.all(
+    const [{ data, error: rowsError }, { data: countData }, { data: settingsData }] = await Promise.all(
       [
         supabase.rpc('list_admin_submissions'),
         supabase.rpc('count_registered_users'),
+        supabase.from('event_settings').select('character_options').eq('id', true).single(),
       ],
     )
     if (rowsError) setError('回答一覧を読み込めませんでした。')
     else setRows((data ?? []) as AdminSubmission[])
     setRegistered(Number(countData ?? 0))
+    if (settingsData?.character_options)
+      setCharacters(settingsData.character_options as CharacterOption[])
   }, [])
 
   useEffect(() => {
@@ -98,21 +99,21 @@ export function ResponsesPage() {
   const rankings = useMemo(
     () =>
       Object.fromEntries(
-        rankingCategories.map((category) => [
-          category,
+        characters.map((character) => [
+          character.id,
           Object.fromEntries(
             rankingDivisions.map((division) => [
               division,
-              rankedByCategoryAndDivision(rows, category, division),
+              rankedByCategoryAndDivision(rows, character.id, division),
             ]),
           ) as Record<EntryDivision, AdminSubmission[]>,
         ]),
       ) as Record<Category, Record<EntryDivision, AdminSubmission[]>>,
-    [rows],
+    [rows, characters],
   )
   const stats = useMemo(
-    () => getResponseStats(rows, registered),
-    [rows, registered],
+    () => getResponseStats(rows, registered, characters.map((character) => character.id)),
+    [rows, registered, characters],
   )
 
   const edit = async (row: AdminSubmission) => {
@@ -242,7 +243,7 @@ export function ResponsesPage() {
         row.profile.user_id,
         row.discord_username,
         row.producer_name,
-        categoryName[row.category],
+        characterLabel(characters, row.category),
         entryDivisionName[row.entry_division],
         row.review?.confirmed_score,
         statusName[row.review?.verification_status ?? 'pending'],
@@ -278,10 +279,11 @@ export function ResponsesPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      <ResponseStats registered={registered} stats={stats} />
-      <ResponseRankings rankings={rankings} />
+      <ResponseStats registered={registered} stats={stats} characters={characters} />
+      <ResponseRankings rankings={rankings} characters={characters} />
       <ResponsesTable
         rows={filtered}
+        characters={characters}
         verifiedCount={stats.verified}
         search={search}
         categoryFilter={categoryFilter}

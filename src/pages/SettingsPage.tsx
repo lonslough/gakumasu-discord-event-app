@@ -1,6 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
+import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
+import type { CharacterOption } from '../types'
 
 const maxRulesLength = 10000
 
@@ -16,6 +19,10 @@ export function SettingsPage() {
   const [rules, setRules] = useState('')
   const [submissionStart, setSubmissionStart] = useState('')
   const [submissionEnd, setSubmissionEnd] = useState('')
+  const [characters, setCharacters] = useState<CharacterOption[]>([])
+  const [showRulesModal, setShowRulesModal] = useState(false)
+  const [rulesDraft, setRulesDraft] = useState('')
+  const [rulesSubmitting, setRulesSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
@@ -25,7 +32,7 @@ export function SettingsPage() {
     const load = async () => {
       const { data, error: loadError } = await supabase
         .from('event_settings')
-        .select('rules_description, submission_start_at, submission_end_at')
+        .select('rules_description, submission_start_at, submission_end_at, character_options')
         .eq('id', true)
         .single()
       if (loadError) setError('ルール説明を読み込めませんでした。')
@@ -33,6 +40,8 @@ export function SettingsPage() {
         setRules(data.rules_description)
         setSubmissionStart(toLocalDateTime(data.submission_start_at))
         setSubmissionEnd(toLocalDateTime(data.submission_end_at))
+        const saved = (data.character_options as CharacterOption[] | null) ?? defaultCharacterOptions
+        setCharacters(saved.length === 2 ? saved : defaultCharacterOptions)
       }
       setLoading(false)
     }
@@ -42,6 +51,10 @@ export function SettingsPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!session || rules.length > maxRulesLength) return
+    if (characters.length !== 2 || characters[0].id === characters[1].id) {
+      setError('異なるキャラクターを2名選択してください。')
+      return
+    }
     if (
       submissionStart &&
       submissionEnd &&
@@ -63,12 +76,34 @@ export function SettingsPage() {
         submission_end_at: submissionEnd
           ? new Date(submissionEnd).toISOString()
           : null,
+        character_options: characters,
         updated_by: session.user.id,
       })
       .eq('id', true)
     if (updateError) setError('設定の保存に失敗しました。')
-    else setMessage('設定を保存しました。')
+    else {
+      setMessage('設定を保存しました。')
+    }
     setSubmitting(false)
+  }
+
+  const saveRules = async () => {
+    if (!session || rulesDraft.length > maxRulesLength) return
+    setRulesSubmitting(true)
+    setMessage('')
+    setError('')
+    const { error: updateError } = await supabase
+      .from('event_settings')
+      .update({ rules_description: rulesDraft, updated_by: session.user.id })
+      .eq('id', true)
+    setRulesSubmitting(false)
+    if (updateError) {
+      setError('ルール説明の保存に失敗しました。')
+      return
+    }
+    setRules(rulesDraft)
+    setShowRulesModal(false)
+    setMessage('ルール説明を保存しました。')
   }
 
   return (
@@ -77,7 +112,7 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">ADMINISTRATION</p>
           <h1>設定</h1>
-          <p>イベントルールと応募受付期間を設定します。</p>
+          <p>イベントルール、対象キャラクター、応募受付期間を設定します。</p>
         </div>
       </div>
       {message && <div className="notice success">{message}</div>}
@@ -112,21 +147,56 @@ export function SettingsPage() {
                 </label>
               </div>
             </fieldset>
-            <div className="settings-section">
-            <label htmlFor="rules-description">
-              ルール説明
-              <textarea
-                id="rules-description"
-                className="rules-textarea"
-                value={rules}
-                maxLength={maxRulesLength}
-                onChange={(event) => setRules(event.target.value)}
-                placeholder="イベントのルールを入力してください。改行もそのまま回答入力画面に反映されます。"
-              />
-            </label>
+            <fieldset className="settings-section">
+              <legend>対象キャラクター</legend>
+              <div className="character-settings-list">
+                {characters.map((character, index) => (
+                  <Fragment key={index}>
+                    <div className="character-slot">
+                      <label htmlFor={`character-slot-${index}`}>
+                        キャラクター {index + 1}
+                        <select
+                          id={`character-slot-${index}`}
+                          value={character.id}
+                          onChange={(event) => {
+                            const selected = characterRoster.find((option) => option.id === event.target.value)
+                            if (selected) setCharacters((current) => current.map((item, itemIndex) => itemIndex === index ? selected : item))
+                          }}
+                        >
+                          {characterRoster
+                            .filter((option) => option.id === character.id || !characters.some((selected, selectedIndex) => selectedIndex !== index && selected.id === option.id))
+                            .map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    {index === 0 && (
+                      <button
+                        type="button"
+                        className="character-swap-button"
+                        aria-label="2つのキャラクターを入れ替える"
+                        title="入れ替える"
+                        onClick={() => setCharacters(([first, second]) => [second, first])}
+                      >
+                        ⇄
+                      </button>
+                    )}
+                  </Fragment>
+                ))}
+              </div>
+                <label>
+                <small>強化月間の2枠に割り当てるキャラクターを選択します。同じキャラクターは重複して選択できません。</small>
+                </label>
+            </fieldset>
+            <div className="settings-section rules-setting-row">
+              <div>
+                <strong>ルール説明</strong>
+                <small>回答入力画面に表示するイベントルールを編集します。</small>
+              </div>
+              <button type="button" className="button secondary" onClick={() => { setRulesDraft(rules); setShowRulesModal(true) }}>
+                ルール説明変更
+              </button>
             </div>
             <div className="rules-editor-footer">
-              <span className="muted">{rules.length.toLocaleString()} / {maxRulesLength.toLocaleString()}文字</span>
               <button className="button primary" disabled={submitting}>
                 {submitting ? '保存中…' : '設定を保存'}
               </button>
@@ -134,6 +204,20 @@ export function SettingsPage() {
           </form>
         )}
       </section>
+      {showRulesModal && (
+        <Modal
+          title="ルール説明変更"
+          wide
+          onClose={() => !rulesSubmitting && setShowRulesModal(false)}
+          actions={<><button type="button" className="button secondary" disabled={rulesSubmitting} onClick={() => setShowRulesModal(false)}>キャンセル</button><button type="button" className="button primary" disabled={rulesSubmitting} onClick={() => void saveRules()}>{rulesSubmitting ? '保存中…' : '保存'}</button></>}
+        >
+          <label htmlFor="rules-description">
+            ルール説明
+            <textarea id="rules-description" className="rules-textarea" value={rulesDraft} maxLength={maxRulesLength} onChange={(event) => setRulesDraft(event.target.value)} placeholder="イベントのルールを入力してください。改行もそのまま回答入力画面に反映されます。" />
+          </label>
+          <div className="rules-character-count muted">{rulesDraft.length.toLocaleString()} / {maxRulesLength.toLocaleString()}文字</div>
+        </Modal>
+      )}
     </main>
   )
 }

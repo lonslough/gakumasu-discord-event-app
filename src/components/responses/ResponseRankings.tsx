@@ -1,38 +1,43 @@
-import { useState } from 'react'
-import type { AdminSubmission, Category, EntryDivision } from '../../types'
-import { categoryName, entryDivisionName } from './labels'
+import { useEffect, useState } from 'react'
+import type { AdminSubmission, Category, CharacterOption, EntryDivision } from '../../types'
+import { entryDivisionName } from './labels'
 
 interface ResponseRankingsProps {
   rankings: Record<Category, Record<EntryDivision, AdminSubmission[]>>
+  characters: CharacterOption[]
 }
 
-const categories: Category[] = ['sena', 'tsubame']
 const divisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
-export function ResponseRankings({ rankings }: ResponseRankingsProps) {
-  const [selectedCategory, setSelectedCategory] = useState<Category>('sena')
+export function ResponseRankings({ rankings, characters }: ResponseRankingsProps) {
+  const [selectedCategory, setSelectedCategory] = useState<Category>(characters[0]?.id ?? '')
+  useEffect(() => {
+    if (!characters.some((character) => character.id === selectedCategory))
+      setSelectedCategory(characters[0]?.id ?? '')
+  }, [characters, selectedCategory])
+  if (!selectedCategory || !rankings[selectedCategory]) return null
   return (
     <section className="card ranking">
       <div className="ranking-heading">
         <fieldset className="ranking-selector">
           <legend>ランキング部門</legend>
-          {categories.map((category) => (
-            <label key={category}>
+          {characters.map((character) => (
+            <label key={character.id}>
               <input
                 type="radio"
                 name="ranking-category"
-                value={category}
-                checked={selectedCategory === category}
-                onChange={() => setSelectedCategory(category)}
+                value={character.id}
+                checked={selectedCategory === character.id}
+                onChange={() => setSelectedCategory(character.id)}
               />
-              {categoryName[category]}
+              {character.name}
             </label>
           ))}
         </fieldset>
         <span className="ranking-note">確認済みのみ</span>
       </div>
       <div className="ranking-title">
-        <h2>{categoryName[selectedCategory]}ランキング</h2>
+        <h2>{characters.find((character) => character.id === selectedCategory)?.name}ランキング</h2>
       </div>
       <div className="ranking-divisions">
         {divisions.map((division) => {

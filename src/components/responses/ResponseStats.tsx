@@ -1,17 +1,18 @@
 import type { ResponseStats as Stats } from '../../lib/adminResponses'
+import type { CharacterOption } from '../../types'
 
 interface ResponseStatsProps {
   registered: number
   stats: Stats
+  characters: CharacterOption[]
 }
 
-export function ResponseStats({ registered, stats }: ResponseStatsProps) {
+export function ResponseStats({ registered, stats, characters }: ResponseStatsProps) {
   const items = [
     ['登録ユーザー数', registered],
     ['回答者数', stats.submitted],
     ['未回答者数', stats.unsubmitted],
-    ['十王星南部門', stats.byCategory.sena],
-    ['雨夜燕部門', stats.byCategory.tsubame],
+    ...characters.map((character) => [`${character.name}部門`, stats.byCategory[character.id] ?? 0] as const),
   ] as const
 
   return (

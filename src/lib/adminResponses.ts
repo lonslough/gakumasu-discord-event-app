@@ -8,7 +8,7 @@ export interface ResponseStats {
   submitted: number
   unsubmitted: number
   verified: number
-  byCategory: Record<Category, number>
+  byCategory: Record<string, number>
 }
 
 const pendingStatus: VerificationStatus = 'pending'
@@ -81,12 +81,15 @@ export function filterAndSortResponses(
 export function getResponseStats(
   rows: AdminSubmission[],
   registered: number,
+  categories: Category[] = ['sena', 'tsubame'],
 ): ResponseStats {
-  const byCategory: Record<Category, number> = { sena: 0, tsubame: 0 }
+  const byCategory: Record<string, number> = Object.fromEntries(
+    categories.map((category) => [category, 0]),
+  )
   let verified = 0
 
   for (const row of rows) {
-    byCategory[row.category] += 1
+    byCategory[row.category] = (byCategory[row.category] ?? 0) + 1
     if (row.review?.verification_status === 'verified') verified += 1
   }
 

@@ -1,5 +1,12 @@
 export type Role = 'user' | 'admin'
-export type Category = 'sena' | 'tsubame'
+export type Category = string
+
+export interface CharacterOption {
+  id: string
+  name: string
+  shortName: string
+  enabled: boolean
+}
 export type EntryDivision = 'open' | 'switch_off' | 'beginner'
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
 

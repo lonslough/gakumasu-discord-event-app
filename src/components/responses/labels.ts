@@ -1,9 +1,4 @@
-import type { Category, EntryDivision, VerificationStatus } from '../../types'
-
-export const categoryName: Record<Category, string> = {
-  sena: '十王星南',
-  tsubame: '雨夜燕',
-}
+import type { EntryDivision, VerificationStatus } from '../../types'
 
 export const statusName: Record<VerificationStatus, string> = {
   pending: '未確認',
