@@ -1,13 +1,15 @@
-import type { AdminSubmission } from '../types'
+import type { AdminSubmission, Category, EntryDivision } from '../types'
 
-export function rankedByCategory(
+export function rankedByCategoryAndDivision(
   rows: AdminSubmission[],
-  category: 'sena' | 'tsubame',
+  category: Category,
+  entryDivision: EntryDivision,
 ): AdminSubmission[] {
   return rows
     .filter(
       (row) =>
         row.category === category &&
+        row.entry_division === entryDivision &&
         row.review?.verification_status === 'verified' &&
         row.review.confirmed_score !== null,
     )
