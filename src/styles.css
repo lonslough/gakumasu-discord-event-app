@@ -212,11 +212,9 @@ a {
 }
 
 .card {
-  background: linear-gradient(
-    145deg,
-    rgba(28, 34, 55, 0.96),
-    rgba(18, 23, 39, 0.96)
-  );
+  background: linear-gradient(145deg,
+      rgba(28, 34, 55, 0.96),
+      rgba(18, 23, 39, 0.96));
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
@@ -790,7 +788,7 @@ fieldset {
   min-width: 0;
 }
 
-.admin-layout > * {
+.admin-layout>* {
   min-width: 0;
 }
 
@@ -909,7 +907,11 @@ td small {
 }
 
 .stat {
-  padding: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
 }
 
 .stat span {
@@ -920,19 +922,54 @@ td small {
 
 .stat strong {
   display: block;
-  margin-top: 8px;
-  font-size: 28px;
-}
-
-.rankings {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin-bottom: 18px;
+  margin-top: 0;
+  font-size: 24px;
+  line-height: 1.1;
 }
 
 .ranking {
   padding: 20px;
+  margin-bottom: 18px;
+}
+
+.ranking-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ranking-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.ranking-selector legend {
+  width: 100%;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.ranking-selector label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.ranking-selector input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.ranking-note {
+  flex: none;
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .ranking-title {
@@ -942,6 +979,7 @@ td small {
 }
 
 .ranking-title h2 {
+  margin: -1px 0;
   font-size: 16px;
 }
 
@@ -1177,6 +1215,14 @@ td small {
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .stat {
+    display: block;
+  }
+
+  .stat strong {
+    margin-top: 3px;
+  }
+
   .login-page {
     grid-template-columns: 1fr;
   }
@@ -1191,8 +1237,9 @@ td small {
     padding: 25px;
   }
 
-  .rankings {
-    grid-template-columns: 1fr;
+  .ranking-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
