@@ -9,7 +9,7 @@ import {
   validateEntry,
   type EntryValues,
 } from '../lib/validation'
-import type { Submission } from '../types'
+import type { CharacterOption, Submission } from '../types'
 
 const initialValues: EntryValues = {
   discordUsername: '',
@@ -29,6 +29,7 @@ interface EventSettings {
   submission_end_at: string | null
   server_now: string
   accepting_submissions: boolean
+  character_options: CharacterOption[]
 }
 
 const formatPeriodDate = (value: string) =>
@@ -504,29 +505,26 @@ export function EntryPage() {
                 <span className="required">必須</span>
               </legend>
               <div className="radio-cards">
-                {(
-                  [
-                    ['sena', '十王星南', 'SENA'],
-                    ['tsubame', '雨夜燕', 'TSUBAME'],
-                  ] as const
-                ).map(([value, label, sub]) => (
-                  <label
-                    className={values.category === value ? 'selected' : ''}
-                    key={value}
-                  >
-                    <input
-                      type="radio"
-                      name="category"
-                      value={value}
-                      checked={values.category === value}
-                      onChange={() => setValues({ ...values, category: value })}
-                    />
-                    <span>
-                      <strong>{label}</strong>
-                      <small>{sub} CATEGORY</small>
-                    </span>
-                  </label>
-                ))}
+                {(eventSettings?.character_options ?? [])
+                  .filter((character) => character.enabled || character.id === existing?.category)
+                  .map((character) => (
+                    <label
+                      className={values.category === character.id ? 'selected' : ''}
+                      key={character.id}
+                    >
+                      <input
+                        type="radio"
+                        name="category"
+                        value={character.id}
+                        checked={values.category === character.id}
+                        onChange={() => setValues({ ...values, category: character.id })}
+                      />
+                      <span>
+                        <strong>{character.name}</strong>
+                        <small>{character.shortName || character.id.toUpperCase()} CATEGORY</small>
+                      </span>
+                    </label>
+                  ))}
               </div>
               {errors.category && (
                 <p className="field-error">{errors.category}</p>

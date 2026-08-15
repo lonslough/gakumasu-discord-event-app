@@ -3,11 +3,13 @@ import type {
   ResponseSort,
   StatusFilter,
 } from '../../lib/adminResponses'
-import type { AdminSubmission } from '../../types'
-import { categoryName, entryDivisionName, statusName } from './labels'
+import { characterLabel } from '../../lib/characters'
+import type { AdminSubmission, CharacterOption } from '../../types'
+import { entryDivisionName, statusName } from './labels'
 
 interface ResponsesTableProps {
   rows: AdminSubmission[]
+  characters: CharacterOption[]
   verifiedCount: number
   search: string
   categoryFilter: CategoryFilter
@@ -22,6 +24,7 @@ interface ResponsesTableProps {
 
 export function ResponsesTable({
   rows,
+  characters,
   verifiedCount,
   search,
   categoryFilter,
@@ -58,8 +61,9 @@ export function ResponsesTable({
           }
         >
           <option value="all">すべてのキャラクター</option>
-          <option value="sena">十王星南</option>
-          <option value="tsubame">雨夜燕</option>
+          {characters.map((character) => (
+            <option value={character.id} key={character.id}>{character.name}</option>
+          ))}
         </select>
         <select
           aria-label="確認状態で絞り込み"
@@ -110,7 +114,7 @@ export function ResponsesTable({
                       {row.producer_name} / {row.profile.user_id}
                     </small>
                   </td>
-                  <td>{categoryName[row.category]}</td>
+                  <td>{characterLabel(characters, row.category)}</td>
                   <td>{entryDivisionName[row.entry_division]}</td>
                   <td className="score">
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
