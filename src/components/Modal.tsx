@@ -10,9 +10,13 @@ interface Props {
 
 export function Modal({ title, children, onClose, actions, wide }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     dialog.current?.focus()
-    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    const close = (event: KeyboardEvent) =>
+      event.key === 'Escape' && onCloseRef.current()
     document.addEventListener('keydown', close)
     return () => document.removeEventListener('keydown', close)
   }, [])
