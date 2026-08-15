@@ -1,36 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
+import { EntryFormFields } from '../components/entry/EntryFormFields'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
-import { compressImageForUpload } from '../lib/imageCompression'
-import { supabase } from '../lib/supabase'
 import {
-  fileExtension,
-  validateEntry,
-  type EntryValues,
-} from '../lib/validation'
-import type { CharacterOption, Submission } from '../types'
-
-const initialValues: EntryValues = {
-  discordUsername: '',
-  producerName: '',
-  category: '',
-  entryDivision: '',
-  resultFile: null,
-  beginnerProofFile: null,
-  loginDaysProofFile: null,
-}
-const bucket = 'submission-images'
-const basename = (path: string) => path.split('/').pop() ?? path
-
-interface EventSettings {
-  rules_description: string
-  submission_start_at: string | null
-  submission_end_at: string | null
-  server_now: string
-  accepting_submissions: boolean
-  character_options: CharacterOption[]
-}
+  createInitialEntryValues,
+  entryValuesFromSubmission,
+  getSettingsRefreshDelay,
+  saveEntry,
+} from '../lib/entryService'
+import { supabase } from '../lib/supabase'
+import { validateEntry, type EntryValues } from '../lib/validation'
+import type { EventSettings, Submission } from '../types'
 
 const formatPeriodDate = (value: string) =>
   new Date(value).toLocaleString('ja-JP', {
@@ -41,153 +22,10 @@ const formatPeriodDate = (value: string) =>
     minute: '2-digit',
   })
 
-function FileField({
-  id,
-  label,
-  file,
-  existing,
-  error,
-  onChange,
-}: {
-  id: string
-  label: string
-  file: File | null
-  existing?: { name: string; path: string } | null
-  error?: string
-  onChange: (file: File | null) => void
-}) {
-  const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
-  const [showExisting, setShowExisting] = useState(false)
-  const [existingUrl, setExistingUrl] = useState<string | null>(null)
-  const [existingLoading, setExistingLoading] = useState(false)
-  const [existingError, setExistingError] = useState('')
-
-  useEffect(() => {
-    if (!file || !['image/jpeg', 'image/png'].includes(file.type)) {
-      setSelectedPreview(null)
-      return
-    }
-    const objectUrl = URL.createObjectURL(file)
-    setSelectedPreview(objectUrl)
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [file])
-
-  useEffect(() => {
-    setShowExisting(false)
-    setExistingUrl(null)
-    setExistingError('')
-  }, [existing?.path])
-
-  const toggleExisting = async () => {
-    if (showExisting) {
-      setShowExisting(false)
-      return
-    }
-    if (existingUrl) {
-      setShowExisting(true)
-      return
-    }
-    if (!existing) return
-    setExistingLoading(true)
-    setExistingError('')
-    const { data, error: signedError } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(existing.path, 600)
-    setExistingLoading(false)
-    if (signedError) {
-      setExistingError('回答済み画像を読み込めませんでした。')
-      return
-    }
-    setExistingUrl(data.signedUrl)
-    setShowExisting(true)
-  }
-
-  return (
-    <div className="file-block">
-      <div className="image-upload-column selected-image-column">
-        <p className="image-column-title">選択した画像</p>
-        <div className="image-column-actions">
-          <div className="file-select-row">
-            <label className="button secondary" htmlFor={id}>
-              画像を選択
-            </label>
-            <input
-              className="visually-hidden-file"
-              id={id}
-              type="file"
-              accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif"
-              onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-            />
-            <span className="selected-file-name">{file?.name ?? '未選択'}</span>
-          </div>
-          <small className="file-help">
-            JPG / PNG / HEIC / HEIF・最大10MB（送信時に自動圧縮）
-          </small>
-        </div>
-        <div className="image-column-media">
-          {selectedPreview ? (
-            <a href={selectedPreview} target="_blank" rel="noreferrer">
-              <img
-                className="entry-preview"
-                src={selectedPreview}
-                alt={`${label}の選択画像プレビュー`}
-              />
-            </a>
-          ) : (
-            <div className="image-placeholder">画像は未選択です</div>
-          )}
-        </div>
-        {error && <p className="field-error">{error}</p>}
-      </div>
-      <div className="image-upload-column existing-image-column">
-        <p className="image-column-title">回答済み画像</p>
-        <div className="image-column-actions">
-          {existing && (
-            <button
-              type="button"
-              className="button secondary small"
-              aria-expanded={showExisting}
-              disabled={existingLoading}
-              onClick={() => void toggleExisting()}
-            >
-              {existingLoading
-                ? '読み込み中…'
-                : showExisting
-                  ? '回答済み画像を閉じる'
-                  : '回答済み画像を確認する'}
-            </button>
-          )}
-        </div>
-        <div className="image-column-media">
-          {existing && showExisting && existingUrl ? (
-            <div className="existing-file">
-              <a href={existingUrl} target="_blank" rel="noreferrer">
-                <img
-                  className="entry-preview"
-                  src={existingUrl}
-                  alt={`${label}の回答済み画像`}
-                />
-                <span>{existing.name}</span>
-              </a>
-            </div>
-          ) : (
-            <div className="image-placeholder">
-              {existing
-                ? 'ボタンを押すと表示します'
-                : '回答済み画像はありません'}
-            </div>
-          )}
-        </div>
-        {existingError && <p className="field-error">{existingError}</p>}
-      </div>
-    </div>
-  )
-}
-
 export function EntryPage() {
   const { session } = useAuth()
   const location = useLocation()
-  const [values, setValues] = useState<EntryValues>(initialValues)
+  const [values, setValues] = useState<EntryValues>(createInitialEntryValues)
   const [existing, setExisting] = useState<Submission | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -212,15 +50,7 @@ export function EntryPage() {
     if (data) {
       const submission = data as Submission
       setExisting(submission)
-      setValues({
-        discordUsername: submission.discord_username,
-        producerName: submission.producer_name,
-        category: submission.category,
-        entryDivision: submission.entry_division,
-        resultFile: null,
-        beginnerProofFile: null,
-        loginDaysProofFile: null,
-      })
+      setValues(entryValuesFromSubmission(submission))
     }
     setLoading(false)
   }, [session])
@@ -245,16 +75,12 @@ export function EntryPage() {
   }, [loadEventSettings])
   useEffect(() => {
     if (!eventSettings) return
-    const serverNow = new Date(eventSettings.server_now).getTime()
-    const start = eventSettings.submission_start_at
-      ? new Date(eventSettings.submission_start_at).getTime()
-      : null
-    const end = eventSettings.submission_end_at
-      ? new Date(eventSettings.submission_end_at).getTime()
-      : null
-    const boundary = start && serverNow < start ? start : end && serverNow <= end ? end : null
-    if (!boundary) return
-    const delay = Math.min(Math.max(boundary - serverNow + 1000, 1000), 2_147_483_647)
+    const delay = getSettingsRefreshDelay(
+      eventSettings.server_now,
+      eventSettings.submission_start_at,
+      eventSettings.submission_end_at,
+    )
+    if (delay === null) return
     const timer = window.setTimeout(() => void loadEventSettings(), delay)
     return () => window.clearTimeout(timer)
   }, [eventSettings, loadEventSettings])
@@ -278,96 +104,20 @@ export function EntryPage() {
     if (!Object.keys(nextErrors).length) setConfirming(true)
   }
 
-  const upload = async (
-    file: File,
-    kind: 'score' | 'beginner-proof' | 'login-days-proof',
-  ) => {
-    let compressed: File
-    try {
-      compressed = await compressImageForUpload(file)
-    } catch {
-      throw new Error('compression')
-    }
-    const path = `${session!.user.id}/${kind}/${crypto.randomUUID()}.${fileExtension(compressed.name)}`
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(path, compressed, {
-        contentType: compressed.type,
-        cacheControl: '3600',
-        upsert: false,
-      })
-    if (error) throw new Error('upload')
-    return path
-  }
-
   const save = async () => {
     if (!session) return
-    const entryDivision = existing?.entry_division ?? values.entryDivision
     setConfirming(false)
     setSubmitting(true)
     setFailure('')
     setMessage('')
-    const uploaded: string[] = []
     try {
       const latestSettings = await loadEventSettings()
       if (!latestSettings?.accepting_submissions) throw new Error('period')
-      const resultPath = values.resultFile
-        ? await upload(values.resultFile, 'score')
-        : existing?.deck_image_path
-          ? null
-          : (existing?.score_image_path ?? null)
-      if (resultPath && values.resultFile) uploaded.push(resultPath)
-      const beginnerProofPath =
-        entryDivision === 'beginner'
-          ? values.beginnerProofFile
-            ? await upload(values.beginnerProofFile, 'beginner-proof')
-            : existing?.beginner_proof_image_path
-          : null
-      if (values.beginnerProofFile && beginnerProofPath)
-        uploaded.push(beginnerProofPath)
-      const loginDaysProofPath =
-        entryDivision === 'beginner'
-          ? values.loginDaysProofFile
-            ? await upload(values.loginDaysProofFile, 'login-days-proof')
-            : existing?.login_days_proof_image_path
-          : null
-      if (values.loginDaysProofFile && loginDaysProofPath)
-        uploaded.push(loginDaysProofPath)
-      const { error } = await supabase.from('submissions').upsert(
-        {
-          user_id: session.user.id,
-          discord_username: values.discordUsername.trim(),
-          producer_name: values.producerName.trim(),
-          category: values.category,
-          entry_division: entryDivision,
-          score_image_path: resultPath,
-          deck_image_path: null,
-          beginner_proof_image_path: beginnerProofPath,
-          login_days_proof_image_path: loginDaysProofPath,
-        },
-        { onConflict: 'user_id' },
-      )
-      if (error) throw new Error('database')
-      const oldPaths = [
-        values.resultFile || existing?.deck_image_path
-          ? existing?.score_image_path
-          : null,
-        existing?.deck_image_path,
-        values.beginnerProofFile ||
-        (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
-          ? existing?.beginner_proof_image_path
-          : null,
-        values.loginDaysProofFile ||
-        (entryDivision !== 'beginner' && existing?.login_days_proof_image_path)
-          ? existing?.login_days_proof_image_path
-          : null,
-      ].filter((path): path is string => Boolean(path))
-      if (oldPaths.length) await supabase.storage.from(bucket).remove(oldPaths)
+      await saveEntry({ userId: session.user.id, values, existing })
       setMessage('回答を保存しました。')
       await load()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
-      if (uploaded.length) await supabase.storage.from(bucket).remove(uploaded)
       let saveError = error
       if (
         error instanceof Error &&
@@ -460,268 +210,15 @@ export function EntryPage() {
           className="entry-form-fields"
           disabled={!eventSettings?.accepting_submissions}
         >
-        <section className="card form-section">
-          <div className="section-number">01</div>
-          <div className="section-content">
-            <h2>参加者情報</h2>
-            <div className="form-grid">
-              <label>
-                サーバー内ユーザーネーム <span className="required">必須</span>
-                <input
-                  value={values.discordUsername}
-                  maxLength={100}
-                  onChange={(e) =>
-                    setValues({ ...values, discordUsername: e.target.value })
-                  }
-                />
-                {errors.discordUsername && (
-                  <span className="field-error">{errors.discordUsername}</span>
-                )}
-              </label>
-              <label>
-                ゲーム内プロデューサーネーム{' '}
-                <span className="required">必須</span>
-                <input
-                  value={values.producerName}
-                  maxLength={100}
-                  onChange={(e) =>
-                    setValues({ ...values, producerName: e.target.value })
-                  }
-                />
-                {errors.producerName && (
-                  <span className="field-error">{errors.producerName}</span>
-                )}
-              </label>
-            </div>
-          </div>
-        </section>
-        <section className="card form-section">
-          <div className="section-number">02</div>
-          <div className="section-content">
-            <h2>育成キャラクター</h2>
-            <fieldset>
-              <legend>
-                育成キャラクターを選択してください{' '}
-                <span className="required">必須</span>
-              </legend>
-              <div className="radio-cards">
-                {(eventSettings?.character_options ?? [])
-                  .filter((character) => character.enabled || character.id === existing?.category)
-                  .map((character) => (
-                    <label
-                      className={values.category === character.id ? 'selected' : ''}
-                      key={character.id}
-                    >
-                      <input
-                        type="radio"
-                        name="category"
-                        value={character.id}
-                        checked={values.category === character.id}
-                        onChange={() => setValues({ ...values, category: character.id })}
-                      />
-                      <span>
-                        <strong>{character.name}</strong>
-                        <small>{character.shortName || character.id.toUpperCase()} CATEGORY</small>
-                      </span>
-                    </label>
-                  ))}
-              </div>
-              {errors.category && (
-                <p className="field-error">{errors.category}</p>
-              )}
-            </fieldset>
-          </div>
-        </section>
-        <section className="card form-section">
-          <div className="section-number">03</div>
-          <div className="section-content">
-            <h2>応募部門</h2>
-            <fieldset>
-              <legend>
-                応募部門を選択してください{' '}
-                <span className="required">必須</span>
-              </legend>
-              {existing && (
-                <p className="help">応募部門は回答後に変更できません。</p>
-              )}
-              <div className="radio-cards">
-                {(
-                  [
-                    ['open', '無差別部門', '参加条件なし'],
-                    [
-                      'switch_off',
-                      'スイッチカードOFF部門',
-                      'スイッチカードOFF必須',
-                    ],
-                    ['beginner', '初心者部門', 'スイッチカードOFF必須'],
-                  ] as const
-                ).map(([value, label, description]) => (
-                  <label
-                    className={values.entryDivision === value ? 'selected' : ''}
-                    key={value}
-                  >
-                    <input
-                      type="radio"
-                      name="entryDivision"
-                      value={value}
-                      checked={values.entryDivision === value}
-                      disabled={Boolean(existing)}
-                      onChange={() =>
-                        setValues({ ...values, entryDivision: value })
-                      }
-                    />
-                    <span>
-                      <strong>{label}</strong>
-                      <small>{description}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {values.entryDivision === 'beginner' && (
-                <p className="help">
-                  参加条件：イベント参加時点で「PLv60未満」または「ログイン日数合計90日以下」の方
-                </p>
-              )}
-              {errors.entryDivision && (
-                <p className="field-error">{errors.entryDivision}</p>
-              )}
-            </fieldset>
-          </div>
-        </section>
-        <section className="card form-section">
-          <div className="section-number">04</div>
-          <div className="section-content">
-            <h2>画像アップロード</h2>
-            <div className="image-upload-group">
-              <div className="image-upload-heading">
-                <h3>
-                  評価値・最終所持スキルカード
-                  <span className="optional">任意</span>
-                </h3>
-                <p className="help">
-                  評価値と最終所持スキルカードが同時に確認できる画像を添付してください
-                </p>
-              </div>
-              <div className="image-upload-row">
-                <FileField
-                  id="result"
-                  label="評価値・最終所持スキルカード"
-                  file={values.resultFile}
-                  existing={
-                    existing?.score_image_path && !existing.deck_image_path
-                      ? {
-                          name: basename(existing.score_image_path),
-                          path: existing.score_image_path,
-                        }
-                      : null
-                  }
-                  error={errors.resultFile}
-                  onChange={(file) =>
-                    setValues({ ...values, resultFile: file })
-                  }
-                />
-                <figure className="image-sample">
-                  <figcaption>アップロード画像例</figcaption>
-                  <div className="image-column-actions" aria-hidden="true" />
-                  <img
-                    src={`${import.meta.env.BASE_URL}sample/score_sample.png`}
-                    alt="評価値・最終所持スキルカード画像の見本"
-                  />
-                </figure>
-              </div>
-            </div>
-            {values.entryDivision === 'beginner' && (
-              <div className="evidence-fields">
-                <div className="image-upload-group">
-                  <div className="image-upload-heading">
-                    <h3>
-                      PID・Pレベル確認画像
-                      <span className="required">必須</span>
-                    </h3>
-                    <p className="help">
-                      PIDとPレベルの両方がわかる画像を添付してください
-                    </p>
-                  </div>
-                  <div className="image-upload-row">
-                    <FileField
-                      id="beginner-proof"
-                      label="PID・Pレベル確認画像"
-                      file={values.beginnerProofFile}
-                      existing={
-                        existing?.beginner_proof_image_path
-                          ? {
-                              name: basename(
-                                existing.beginner_proof_image_path,
-                              ),
-                              path: existing.beginner_proof_image_path,
-                            }
-                          : null
-                      }
-                      error={errors.beginnerProofFile}
-                      onChange={(file) =>
-                        setValues({ ...values, beginnerProofFile: file })
-                      }
-                    />
-                    <figure className="image-sample">
-                      <figcaption>アップロード画像例</figcaption>
-                      <div
-                        className="image-column-actions"
-                        aria-hidden="true"
-                      />
-                      <img
-                        src={`${import.meta.env.BASE_URL}sample/PID_Plv_sample.PNG`}
-                        alt="PID・Pレベル確認画像の見本"
-                      />
-                    </figure>
-                  </div>
-                </div>
-                <div className="image-upload-group">
-                  <div className="image-upload-heading">
-                    <h3>
-                      出席日数確認画像
-                      <span className="required">必須</span>
-                    </h3>
-                    <p className="help">
-                      通知表の出席日数がわかる画像を添付してください
-                    </p>
-                  </div>
-                  <div className="image-upload-row">
-                    <FileField
-                      id="login-days-proof"
-                      label="出席日数確認画像"
-                      file={values.loginDaysProofFile}
-                      existing={
-                        existing?.login_days_proof_image_path
-                          ? {
-                              name: basename(
-                                existing.login_days_proof_image_path,
-                              ),
-                              path: existing.login_days_proof_image_path,
-                            }
-                          : null
-                      }
-                      error={errors.loginDaysProofFile}
-                      onChange={(file) =>
-                        setValues({ ...values, loginDaysProofFile: file })
-                      }
-                    />
-                    <figure className="image-sample">
-                      <figcaption>アップロード画像例</figcaption>
-                      <div
-                        className="image-column-actions"
-                        aria-hidden="true"
-                      />
-                      <img
-                        src={`${import.meta.env.BASE_URL}sample/login_days_sample.png`}
-                        alt="出席日数画像の見本"
-                      />
-                    </figure>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        <EntryFormFields
+          values={values}
+          errors={errors}
+          existing={existing}
+          characters={eventSettings?.character_options ?? []}
+          onChange={(patch) =>
+            setValues((current) => ({ ...current, ...patch }))
+          }
+        />
         </fieldset>
         <button
           className="button primary submit-button"
