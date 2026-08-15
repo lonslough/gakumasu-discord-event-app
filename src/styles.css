@@ -224,6 +224,14 @@ a {
   padding: 30px;
   margin-bottom: 24px;
 }
+.settings-section {
+  margin-bottom: 30px;
+}
+.settings-section legend {
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
 
 .rules-description {
   margin: 0;
@@ -258,6 +266,12 @@ a {
   display: flex;
   margin: 18px 0;
   padding: 30px;
+}
+.entry-form-fields {
+  min-width: 0;
+}
+.entry-form-fields:disabled .form-section {
+  opacity: 0.62;
 }
 
 .section-number {

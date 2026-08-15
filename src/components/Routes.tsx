@@ -5,7 +5,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { EntryPage } from '../pages/EntryPage'
 import { UsersPage } from '../pages/UsersPage'
 import { ResponsesPage } from '../pages/ResponsesPage'
-import { RulesPage } from '../pages/RulesPage'
+import { SettingsPage } from '../pages/SettingsPage'
 
 function Loading() {
   return (
@@ -46,7 +46,11 @@ export function AppRoutes() {
         <Route element={<AdminOnly />}>
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/responses" element={<ResponsesPage />} />
-          <Route path="/admin/rules" element={<RulesPage />} />
+          <Route path="/admin/settings" element={<SettingsPage />} />
+          <Route
+            path="/admin/rules"
+            element={<Navigate to="/admin/settings" replace />}
+          />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/entry" replace />} />
