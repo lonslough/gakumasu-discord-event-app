@@ -4,6 +4,9 @@ services:
       context: .
     working_dir: /app
     init: true
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
       - "5173:5173"
     volumes:
@@ -17,24 +20,52 @@ services:
       - ./eslint.config.js:/app/eslint.config.js:ro
       - node_modules:/app/node_modules
       - build_output:/app/dist
+      - supabase_runtime:/supabase-runtime:ro
     environment:
       CHOKIDAR_USEPOLLING: "true"
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-    command: npm run dev -- --host 0.0.0.0
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        set -a
+        . /supabase-runtime/supabase.env
+        set +a
+        export VITE_SUPABASE_URL="$$API_URL"
+        export VITE_SUPABASE_ANON_KEY="$$ANON_KEY"
+        exec npm run dev -- --host 0.0.0.0
 
-  supabase:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile.supabase
-    profiles: ["tools"]
+    init: true
     network_mode: host
-    working_dir: ${PWD}
+    working_dir: /workspace
     volumes:
-      - ${PWD}:${PWD}
+      - .:/workspace
       - ${DOCKER_HOST_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
-    command: ["--help"]
+      - supabase_runtime:/supabase-runtime
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        cleanup() {
+          supabase stop || true
+        }
+        trap cleanup EXIT
+        trap 'exit 0' INT TERM
+        supabase start
+        supabase status -o env > /supabase-runtime/supabase.env
+        while sleep 5; do :; done
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /supabase-runtime/supabase.env"]
+      interval: 3s
+      timeout: 2s
+      retries: 60
+      start_period: 10s
+    stop_grace_period: 1m
 
 volumes:
   node_modules:
   build_output:
+  supabase_runtime:

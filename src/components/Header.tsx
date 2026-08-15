@@ -42,8 +42,8 @@ export function Header() {
           </NavLink>
         )}
         {isAdmin && (
-          <NavLink to="/admin/rules" onClick={() => setMenuOpen(false)}>
-            ルール説明変更
+          <NavLink to="/admin/settings" onClick={() => setMenuOpen(false)}>
+            設定
           </NavLink>
         )}
       </nav>

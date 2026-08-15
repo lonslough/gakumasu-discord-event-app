@@ -23,6 +23,23 @@ const initialValues: EntryValues = {
 const bucket = 'submission-images'
 const basename = (path: string) => path.split('/').pop() ?? path
 
+interface EventSettings {
+  rules_description: string
+  submission_start_at: string | null
+  submission_end_at: string | null
+  server_now: string
+  accepting_submissions: boolean
+}
+
+const formatPeriodDate = (value: string) =>
+  new Date(value).toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
 function FileField({
   id,
   label,
@@ -179,6 +196,7 @@ export function EntryPage() {
   const [failure, setFailure] = useState('')
   const [rules, setRules] = useState('')
   const [rulesLoading, setRulesLoading] = useState(true)
+  const [eventSettings, setEventSettings] = useState<EventSettings | null>(null)
   const [showingRules, setShowingRules] = useState(false)
   const rulesAutoShown = useRef(false)
 
@@ -208,19 +226,37 @@ export function EntryPage() {
   useEffect(() => {
     void load()
   }, [load])
-  useEffect(() => {
-    const loadRules = async () => {
-      const { data, error } = await supabase
-        .from('event_settings')
-        .select('rules_description')
-        .eq('id', true)
-        .single()
-      if (error) setFailure('ルール説明の読み込みに失敗しました。')
-      else setRules(data.rules_description)
+  const loadEventSettings = useCallback(async () => {
+    const { data, error } = await supabase.rpc('get_event_settings')
+    if (error || !data) {
+      setFailure('イベント設定の読み込みに失敗しました。')
       setRulesLoading(false)
+      return null
     }
-    void loadRules()
+    const settings = data as EventSettings
+    setRules(settings.rules_description)
+    setEventSettings(settings)
+    setRulesLoading(false)
+    return settings
   }, [])
+  useEffect(() => {
+    void loadEventSettings()
+  }, [loadEventSettings])
+  useEffect(() => {
+    if (!eventSettings) return
+    const serverNow = new Date(eventSettings.server_now).getTime()
+    const start = eventSettings.submission_start_at
+      ? new Date(eventSettings.submission_start_at).getTime()
+      : null
+    const end = eventSettings.submission_end_at
+      ? new Date(eventSettings.submission_end_at).getTime()
+      : null
+    const boundary = start && serverNow < start ? start : end && serverNow <= end ? end : null
+    if (!boundary) return
+    const delay = Math.min(Math.max(boundary - serverNow + 1000, 1000), 2_147_483_647)
+    const timer = window.setTimeout(() => void loadEventSettings(), delay)
+    return () => window.clearTimeout(timer)
+  }, [eventSettings, loadEventSettings])
   useEffect(() => {
     if (loading || rulesLoading || existing || rulesAutoShown.current) return
     rulesAutoShown.current = true
@@ -229,6 +265,10 @@ export function EntryPage() {
 
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault()
+    if (!eventSettings?.accepting_submissions) {
+      setFailure('現在は応募期間外のため、回答を送信できません。')
+      return
+    }
     const nextErrors = validateEntry(values, {
       beginnerProof: Boolean(existing?.beginner_proof_image_path),
       loginDaysProof: Boolean(existing?.login_days_proof_image_path),
@@ -268,6 +308,8 @@ export function EntryPage() {
     setMessage('')
     const uploaded: string[] = []
     try {
+      const latestSettings = await loadEventSettings()
+      if (!latestSettings?.accepting_submissions) throw new Error('period')
       const resultPath = values.resultFile
         ? await upload(values.resultFile, 'score')
         : existing?.deck_image_path
@@ -325,12 +367,23 @@ export function EntryPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       if (uploaded.length) await supabase.storage.from(bucket).remove(uploaded)
+      let saveError = error
+      if (
+        error instanceof Error &&
+        (error.message === 'upload' || error.message === 'database')
+      ) {
+        const latestSettings = await loadEventSettings()
+        if (latestSettings && !latestSettings.accepting_submissions)
+          saveError = new Error('period')
+      }
       setFailure(
-        error instanceof Error
-          ? error.message === 'compression'
+        saveError instanceof Error
+          ? saveError.message === 'compression'
             ? '画像を圧縮できませんでした。別の画像形式でお試しください。'
-            : error.message === 'upload'
-              ? '画像のアップロードに失敗しました。通信状態を確認してください。'
+            : saveError.message === 'period'
+              ? '現在は応募期間外のため、回答を送信できません。'
+              : saveError.message === 'upload'
+                ? '画像のアップロードに失敗しました。通信状態を確認してください。'
               : '回答の保存に失敗しました。入力内容は維持されています。'
           : '回答の保存に失敗しました。入力内容は維持されています。',
       )
@@ -373,6 +426,19 @@ export function EntryPage() {
       {(location.state as { denied?: boolean } | null)?.denied && (
         <div className="notice error">管理画面を表示する権限がありません。</div>
       )}
+      {eventSettings && !eventSettings.accepting_submissions && (
+        <div className="notice error" role="status">
+          {eventSettings.submission_start_at &&
+          new Date(eventSettings.server_now) <
+            new Date(eventSettings.submission_start_at)
+            ? `応募受付は${formatPeriodDate(eventSettings.submission_start_at)}から開始します。現在は回答を入力・送信できません。`
+            : `応募受付は${
+                eventSettings.submission_end_at
+                  ? formatPeriodDate(eventSettings.submission_end_at)
+                  : ''
+              }に終了しました。現在は回答を入力・更新できません。`}
+        </div>
+      )}
       {existing && (
         <div className="notice warning">
           すでに回答が登録されています。再度送信すると、以前の回答が上書きされます。
@@ -389,6 +455,10 @@ export function EntryPage() {
         </div>
       )}
       <form onSubmit={requestSubmit} noValidate>
+        <fieldset
+          className="entry-form-fields"
+          disabled={!eventSettings?.accepting_submissions}
+        >
         <section className="card form-section">
           <div className="section-number">01</div>
           <div className="section-content">
@@ -654,7 +724,11 @@ export function EntryPage() {
             )}
           </div>
         </section>
-        <button className="button primary submit-button" disabled={submitting}>
+        </fieldset>
+        <button
+          className="button primary submit-button"
+          disabled={submitting || !eventSettings?.accepting_submissions}
+        >
           {submitting
             ? '送信中…'
             : existing
@@ -674,7 +748,11 @@ export function EntryPage() {
               >
                 キャンセル
               </button>
-              <button className="button primary" onClick={() => void save()}>
+              <button
+                className="button primary"
+                disabled={!eventSettings?.accepting_submissions}
+                onClick={() => void save()}
+              >
                 確認
               </button>
             </>
