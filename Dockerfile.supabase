@@ -6,4 +6,6 @@ WORKDIR /opt/supabase-cli
 RUN npm init -y \
   && npm install --save-exact supabase@2.109.1
 
-ENTRYPOINT ["/opt/supabase-cli/node_modules/.bin/supabase"]
+ENV PATH="/opt/supabase-cli/node_modules/.bin:${PATH}"
+
+CMD ["supabase", "--help"]

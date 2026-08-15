@@ -213,35 +213,23 @@ update public.profiles set role = 'admin' where id = 'AUTH_USER_UUID';
 
 ### ローカルバックエンド
 
-Supabase CLI自体もコンテナで実行します。CLIコンテナがDockerソケットを通じて、PostgreSQL、Auth、Storage、Realtime、Edge Runtime、Studioなどの公式ローカルSupabaseコンテナを起動します。CLIが起動したPostgreSQLへlocalhostで接続するため、CLIコンテナだけはhostネットワークを使用します。Docker Desktopでは Settings → Resources → Network のHost networkingを有効にしてください。
+`docker compose up`でフロントエンドとローカルSupabaseバックエンドをまとめて起動します。`backend`コンテナ内のSupabase CLIがDockerソケットを通じて、PostgreSQL、Auth、Storage、Realtime、Edge Runtime、Studioなどの公式ローカルSupabaseコンテナを管理します。
 
-```bash
-docker compose --profile tools run --rm supabase start
-```
+バックエンド起動後、接続URLとローカル公開キーをDocker Volumeへ自動出力します。Webコンテナはその値を読み込んでから起動するため、`.env`へのキー転記は不要です。初回はSupabase用Dockerイメージの取得に時間がかかります。
 
-初回は必要なDockerイメージのダウンロードに時間がかかります。起動時に表示される `Project URL` と `Publishable key` を `.env` に設定します。変数名はSupabase JavaScript SDKとの互換性のため `VITE_SUPABASE_ANON_KEY` のままですが、値には表示されたPublishable keyを使用できます。
-
-```env
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_SUPABASE_ANON_KEY=起動結果に表示されたPublishable key
-```
+CLIコンテナが起動したサービスへ接続するため、Docker Desktopでは Settings → Resources → Network のHost networkingを有効にしてください。
 
 状態確認、DBの再構築、停止:
 
 ```bash
-docker compose --profile tools run --rm supabase status
-docker compose --profile tools run --rm supabase db reset
-docker compose --profile tools run --rm supabase stop
+docker compose exec backend supabase status
+docker compose exec backend supabase db reset
+docker compose stop backend
 ```
 
 `db reset` はローカルDBを削除して [マイグレーション](supabase/migrations/20260724000000_initial_schema.sql) を再適用します。本番Supabaseには影響しません。
 
-Edge Functionsは `supabase start` によって起動されます。Functionsを単独でホットリロード開発する場合は、先に `supabase status` のSecret keyを `supabase/.env.local.example` からコピーした `supabase/.env.local` へ設定し、別ターミナルで実行します。これはローカル専用キーであり、本番のService Role Keyを使用しないでください。
-
-```bash
-cp supabase/.env.local.example supabase/.env.local
-docker compose --profile tools run --rm --service-ports supabase functions serve --env-file supabase/.env.local
-```
+Edge Functionsもバックエンドと同時に起動し、`supabase/functions`の変更を反映します。
 
 ローカル管理画面Supabase Studioは `http://localhost:54323`、受信メール確認画面Inbucketは `http://localhost:54324` です。
 
@@ -257,14 +245,12 @@ docker compose --profile tools run --rm --service-ports supabase functions serve
 Docker Desktop for Macで標準以外のDockerソケットを使用している場合は、起動前に指定できます。
 
 ```bash
-DOCKER_HOST_SOCKET="$HOME/.docker/run/docker.sock" docker compose --profile tools run --rm supabase start
+DOCKER_HOST_SOCKET="$HOME/.docker/run/docker.sock" docker compose up --build
 ```
 
 ### フロントエンド
 
 ```bash
-cp .env.example .env
-# supabase statusのProject URLとPublishable keyを.envへ設定
 docker compose up --build
 ```
 
@@ -277,9 +263,9 @@ docker compose down
 品質チェックもすべてコンテナ内で実行します。
 
 ```bash
-docker compose run --rm web npm run lint
-docker compose run --rm web npm run test
-docker compose run --rm web npm run build
+docker compose run --rm --no-deps web npm run lint
+docker compose run --rm --no-deps web npm run test
+docker compose run --rm --no-deps web npm run build
 ```
 
 短縮コマンドとして `npm run docker:lint` なども定義していますが、これらの短縮コマンド自体はホストのnpmを必要とします。ホストを完全にNode.js非依存にする場合は上記の `docker compose` コマンドを使用してください。
@@ -288,7 +274,7 @@ docker compose run --rm web npm run build
 
 Volumeを含めて完全に作り直す場合は `docker compose down --volumes` を実行してください。この操作はコンテナ内の依存関係とビルド成果物を削除しますが、ソースコードや `.env` は削除しません。
 
-フロントエンドが使う環境変数は `VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` だけです。Composeがホストの `.env` を読み、コンテナ環境へ渡します。[.env.example](.env.example) はローカルSupabase用、[.env.production.example](.env.production.example) はSupabase Cloud用のサンプルです。いずれもService Role Keyを含めてはいけません。
+フロントエンドが使う環境変数は `VITE_SUPABASE_URL` と `VITE_SUPABASE_ANON_KEY` だけです。Compose開発環境では自動設定されます。ホスト上でViteを直接起動する場合は[.env.example](.env.example)を、本番ビルドでは[.env.production.example](.env.production.example)を参考に設定します。いずれもService Role Keyを含めてはいけません。
 
 ## 9. GitHub Variables / Secrets
 
