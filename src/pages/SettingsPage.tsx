@@ -33,29 +33,42 @@ export function SettingsPage() {
   const [error, setError] = useState('')
 
   const loadEvents = async (preferredId?: string) => {
-    const { data, error: loadError } = await supabase.from('event_editions').select('*').order('created_at', { ascending: false })
-    if (loadError) { setError('開催回を読み込めませんでした。'); setLoading(false); return }
+    const { data, error: loadError } = await supabase
+      .from('event_editions')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (loadError) {
+      setError('開催回を読み込めませんでした。')
+      setLoading(false)
+      return
+    }
     const loaded = (data ?? []) as EventEdition[]
     setEvents(loaded)
     setSelectedEventId(preferredId ?? loaded.find((event) => event.is_active)?.id ?? loaded[0]?.id ?? '')
     setLoading(false)
   }
+
   useEffect(() => { void loadEvents() }, [])
+
   useEffect(() => {
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected) return
-    setEventName(selected.name)
     setRules(selected.rules_description)
+    setEventName(selected.name)
     setSubmissionStart(toLocalDateTime(selected.submission_start_at))
     setSubmissionEnd(toLocalDateTime(selected.submission_end_at))
     setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
-    setMessage(''); setError('')
+    setMessage('')
+    setError('')
   }, [events, selectedEventId])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!session || rules.length > maxRulesLength) return
-    if (!eventName.trim()) return setError('開催回の名称を入力してください。')
+    if (!eventName.trim()) {
+      setError('開催回の名称を入力してください。')
+      return
+    }
     if (characters.length !== 2 || characters[0].id === characters[1].id) {
       setError('異なるキャラクターを2名選択してください。')
       return
@@ -88,7 +101,8 @@ export function SettingsPage() {
       .eq('id', selectedEventId)
     if (updateError) setError('設定の保存に失敗しました。')
     else {
-      setMessage('設定を保存しました。'); await loadEvents(selectedEventId)
+      setMessage('設定を保存しました。')
+      await loadEvents(selectedEventId)
     }
     setSubmitting(false)
   }
@@ -115,14 +129,23 @@ export function SettingsPage() {
 
   const createEvent = async () => {
     if (!session || !newEventName.trim()) return
-    const { data, error: createError } = await supabase.from('event_editions').insert({ name: newEventName.trim(), character_options: defaultCharacterOptions, updated_by: session.user.id }).select('id').single()
+    setError('')
+    const { data, error: createError } = await supabase
+      .from('event_editions')
+      .insert({ name: newEventName.trim(), character_options: defaultCharacterOptions, updated_by: session.user.id })
+      .select('id')
+      .single()
     if (createError) return setError('開催回を作成できませんでした。')
-    setNewEventName(''); await loadEvents(data.id); setMessage('新しい開催回を作成しました。')
+    setNewEventName('')
+    await loadEvents(data.id)
+    setMessage('新しい開催回を作成しました。')
   }
+
   const activateEvent = async () => {
     const { error: activateError } = await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
     if (activateError) return setError('回答受付対象を切り替えられませんでした。')
-    await loadEvents(selectedEventId); setMessage('回答受付対象の開催回を切り替えました。')
+    await loadEvents(selectedEventId)
+    setMessage('回答受付対象の開催回を切り替えました。')
   }
 
   return (
@@ -144,11 +167,26 @@ export function SettingsPage() {
             <fieldset className="settings-section">
               <legend>開催回</legend>
               <div className="form-grid">
-                <label>編集する開催回<select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>{events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}</select></label>
-                <label>開催回の名称<input value={eventName} maxLength={100} onChange={(event) => setEventName(event.target.value)} /></label>
+                <label>
+                  編集する開催回
+                  <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
+                    {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
+                  </select>
+                </label>
+                <label>
+                  開催回の名称
+                  <input value={eventName} maxLength={100} onChange={(event) => setEventName(event.target.value)} />
+                </label>
               </div>
-              <div className="event-settings-actions"><button type="button" className="button secondary small" disabled={events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>この開催回を回答受付対象にする</button></div>
-              <div className="event-create-row"><input placeholder="例: 第2回" value={newEventName} maxLength={100} onChange={(event) => setNewEventName(event.target.value)} /><button type="button" className="button secondary small" disabled={!newEventName.trim()} onClick={() => void createEvent()}>新しい開催回を作成</button></div>
+              <div className="event-settings-actions">
+                <button type="button" className="button secondary small" disabled={events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
+                  この開催回を回答受付対象にする
+                </button>
+              </div>
+              <div className="event-create-row">
+                <input placeholder="例: 第2回" value={newEventName} maxLength={100} onChange={(event) => setNewEventName(event.target.value)} />
+                <button type="button" className="button secondary small" disabled={!newEventName.trim()} onClick={() => void createEvent()}>新しい開催回を作成</button>
+              </div>
             </fieldset>
             <fieldset className="settings-section">
               <legend>応募期間</legend>

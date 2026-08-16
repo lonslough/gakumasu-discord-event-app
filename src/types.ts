@@ -18,6 +18,7 @@ export interface EventSettings {
   accepting_submissions: boolean
   character_options: CharacterOption[]
 }
+
 export interface EventEdition {
   id: string
   name: string

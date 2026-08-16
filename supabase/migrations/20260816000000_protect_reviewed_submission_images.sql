@@ -27,6 +27,8 @@ $$;
 revoke all on function public.reject_reviewed_submission_image_change()
 from public;
 
+drop trigger if exists reject_reviewed_submission_image_change
+on public.submissions;
 create trigger reject_reviewed_submission_image_change
 before update of score_image_path, deck_image_path,
   beginner_proof_image_path, login_days_proof_image_path
