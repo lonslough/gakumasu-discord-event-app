@@ -1,11 +1,13 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Header } from './Header'
-import { LoginPage } from '../pages/LoginPage'
-import { EntryPage } from '../pages/EntryPage'
-import { UsersPage } from '../pages/UsersPage'
-import { ResponsesPage } from '../pages/ResponsesPage'
-import { SettingsPage } from '../pages/SettingsPage'
+
+const LoginPage = lazy(() => import('../pages/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })))
+const EntryPage = lazy(() => import('../pages/EntryPage').then(({ EntryPage }) => ({ default: EntryPage })))
+const UsersPage = lazy(() => import('../pages/UsersPage').then(({ UsersPage }) => ({ default: UsersPage })))
+const ResponsesPage = lazy(() => import('../pages/ResponsesPage').then(({ ResponsesPage }) => ({ default: ResponsesPage })))
+const SettingsPage = lazy(() => import('../pages/SettingsPage').then(({ SettingsPage }) => ({ default: SettingsPage })))
 
 function Loading() {
   return (
@@ -39,21 +41,23 @@ function AdminOnly() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<Protected />}>
-        <Route path="/entry" element={<EntryPage />} />
-        <Route element={<AdminOnly />}>
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/responses" element={<ResponsesPage />} />
-          <Route path="/admin/settings" element={<SettingsPage />} />
-          <Route
-            path="/admin/rules"
-            element={<Navigate to="/admin/settings" replace />}
-          />
+    <Suspense fallback={<Loading />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<Protected />}>
+          <Route path="/entry" element={<EntryPage />} />
+          <Route element={<AdminOnly />}>
+            <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/responses" element={<ResponsesPage />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route
+              path="/admin/rules"
+              element={<Navigate to="/admin/settings" replace />}
+            />
+          </Route>
         </Route>
-      </Route>
-      <Route path="*" element={<Navigate to="/entry" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/entry" replace />} />
+      </Routes>
+    </Suspense>
   )
 }

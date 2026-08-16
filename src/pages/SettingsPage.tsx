@@ -1,13 +1,12 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
-import { Modal } from '../components/Modal'
 import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
+import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
 import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
 import type { CharacterOption, EventEdition } from '../types'
 
-const maxRulesLength = 10000
 const newEventValue = '__new__'
 const emptyCharacters = (): CharacterOption[] => [
   { id: '', name: '', shortName: '', enabled: true },
@@ -325,36 +324,17 @@ export function SettingsPage() {
         )}
       </section>
       {showRulesModal && (
-        <Modal
-          title="ルール説明変更"
-          wide
+        <RulesEditorModal
+          events={events}
+          selectedEventId={selectedEventId}
+          sourceEventId={rulesSourceEventId}
+          value={rulesDraft}
+          submitting={rulesSubmitting}
+          onSourceEventChange={setRulesSourceEventId}
+          onChange={setRulesDraft}
+          onSave={() => void saveRules()}
           onClose={() => !rulesSubmitting && setShowRulesModal(false)}
-          actions={<><button type="button" className="button secondary" disabled={rulesSubmitting} onClick={() => setShowRulesModal(false)}>キャンセル</button><button type="button" className="button primary" disabled={rulesSubmitting} onClick={() => void saveRules()}>{rulesSubmitting ? '保存中…' : '保存'}</button></>}
-        >
-          <label className="rules-source-select" htmlFor="rules-source-event">
-            過去の開催回から呼び出す
-            <select
-              id="rules-source-event"
-              value={rulesSourceEventId}
-              onChange={(event) => {
-                const sourceEventId = event.target.value
-                setRulesSourceEventId(sourceEventId)
-                const sourceEvent = events.find((item) => item.id === sourceEventId)
-                if (sourceEvent) setRulesDraft(sourceEvent.rules_description)
-              }}
-            >
-              <option value="">選択してください</option>
-              {events
-                .filter((event) => event.id !== selectedEventId)
-                .map((event) => <option value={event.id} key={event.id}>{event.name}</option>)}
-            </select>
-          </label>
-          <label htmlFor="rules-description">
-            ルール説明
-            <textarea id="rules-description" className="rules-textarea" value={rulesDraft} maxLength={maxRulesLength} onChange={(event) => setRulesDraft(event.target.value)} placeholder="イベントのルールを入力してください。改行もそのまま回答入力画面に反映されます。" />
-          </label>
-          <div className="rules-character-count muted">{rulesDraft.length.toLocaleString()} / {maxRulesLength.toLocaleString()}文字</div>
-        </Modal>
+        />
       )}
     </main>
   )
