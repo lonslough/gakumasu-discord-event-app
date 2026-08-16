@@ -19,6 +19,14 @@ vi.mock('../lib/imageCompression', () => ({
   compressImageForUpload: async (file: File) => file,
 }))
 
+vi.mock('../components/settings/ImageCropModal', () => ({
+  ImageCropModal: ({ file, onConfirm }: { file: File; onConfirm: (file: File) => void }) => (
+    <div role="dialog" aria-label="画像調整">
+      <button type="button" onClick={() => onConfirm(file)}>この範囲で確定</button>
+    </div>
+  ),
+}))
+
 vi.mock('../lib/localPageImages', () => ({
   cacheLocalPageImages: vi.fn(),
   cacheLocalPageImagesFromStorage: vi.fn(),
@@ -115,9 +123,11 @@ describe('SettingsPage ページ画像', () => {
     fireEvent.change(screen.getByLabelText('ログインページ画像'), {
       target: { files: [imageFile('login.jpg')] },
     })
+    fireEvent.click(await screen.findByRole('button', { name: 'この範囲で確定' }))
     fireEvent.change(screen.getByLabelText('回答入力画面画像'), {
       target: { files: [imageFile('entry.jpg')] },
     })
+    fireEvent.click(await screen.findByRole('button', { name: 'この範囲で確定' }))
     expect(screen.queryByRole('button', { name: 'ページ画像をStorageへ保存' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
 

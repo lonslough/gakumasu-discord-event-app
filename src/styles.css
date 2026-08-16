@@ -134,7 +134,8 @@ a {
   overflow: hidden;
   display: flex;
   justify-content: center;
-  height: clamp(180px, 26vw, 280px);
+  height: auto;
+  aspect-ratio: 16 / 5;
   margin-bottom: 20px;
   padding: 0;
   border: 1px solid rgba(139, 124, 255, 0.35);
@@ -1461,7 +1462,7 @@ td small {
   }
 
   .entry-title-art {
-    height: 145px;
+    height: auto;
     margin-bottom: 22px;
     border-radius: 12px;
   }
@@ -1473,4 +1474,32 @@ td small {
   .account {
     gap: 5px;
   }
+}
+
+.image-crop-canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 58vh;
+  background: #090b14;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.image-crop-canvas:active {
+  cursor: grabbing;
+}
+
+.image-crop-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.image-crop-controls input[type='range'] {
+  width: 100%;
 }
