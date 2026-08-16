@@ -45,7 +45,7 @@ jobs:
           deno-version: v2.4.5
 
       - name: Type-check Edge Functions
-        run: deno check --frozen supabase/functions/create-user/index.ts supabase/functions/reset-user-password/index.ts
+        run: deno check --frozen supabase/functions/create-user/index.ts supabase/functions/reset-user-password/index.ts supabase/functions/activate-event/index.ts supabase/functions/page-images-archive/index.ts
 
       - name: Stop local database
         if: always()

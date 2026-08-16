@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Modal } from '../components/Modal'
+import { PageImageSettings } from '../components/settings/PageImageSettings'
+import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
@@ -152,7 +154,20 @@ export function SettingsPage() {
   }
 
   const activateEvent = async () => {
-    const { error: activateError } = await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
+    const selected = events.find((event) => event.id === selectedEventId)
+    if (!selected?.page_images_path) return setError('先にこの開催回のページ画像をStorageへ保存してください。')
+    if (import.meta.env.DEV) {
+      try {
+        await cacheLocalPageImagesFromStorage(selected.page_images_path)
+      } catch {
+        return setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+      }
+    }
+    const { error: activateError } = import.meta.env.DEV
+      ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
+      : await supabase.functions.invoke('activate-event', {
+          body: { eventId: selectedEventId },
+        })
     if (activateError) return setError('回答受付対象を切り替えられませんでした。')
     await loadEvents(selectedEventId)
     setMessage('回答受付対象の開催回を切り替えました。')
@@ -220,6 +235,13 @@ export function SettingsPage() {
                 </label>
               </div>
             </fieldset>
+            <PageImageSettings
+              eventId={selectedEventId === newEventValue ? null : selectedEventId}
+              isActive={Boolean(events.find((event) => event.id === selectedEventId)?.is_active)}
+              hasImages={Boolean(events.find((event) => event.id === selectedEventId)?.page_images_path)}
+              pageImagesPath={events.find((event) => event.id === selectedEventId)?.page_images_path ?? null}
+              onSaved={() => loadEvents(selectedEventId)}
+            />
             <fieldset className="settings-section">
               <legend>対象キャラクター</legend>
               <div className="character-settings-list">

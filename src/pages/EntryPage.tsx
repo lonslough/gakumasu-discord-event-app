@@ -10,6 +10,7 @@ import {
   saveEntry,
 } from '../lib/entryService'
 import { supabase } from '../lib/supabase'
+import { siteAssetUrl, useSiteConfig } from '../lib/siteConfig'
 import { validateEntry, type EntryValues } from '../lib/validation'
 import type { EventSettings, Submission } from '../types'
 
@@ -39,6 +40,7 @@ function saveFailureMessage(error: unknown): string {
 }
 
 export function EntryPage() {
+  const siteConfig = useSiteConfig()
   const { session } = useAuth()
   const location = useLocation()
   const [values, setValues] = useState<EntryValues>(createInitialEntryValues)
@@ -164,7 +166,7 @@ export function EntryPage() {
     <main className="page narrow">
       <div className="entry-title-art" aria-hidden="true">
         <img
-          src={`${import.meta.env.BASE_URL}images/tsubame-sena-title2.png`}
+          src={siteAssetUrl(siteConfig.entryImage)}
           alt=""
         />
       </div>

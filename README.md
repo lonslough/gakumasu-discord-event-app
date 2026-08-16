@@ -299,6 +299,28 @@ Settings → Environmentsで `production` 環境を作成してください。�
 
 Settings → Pages → Build and deployment → Sourceで **GitHub Actions** を選択します。`main` pushでlint・test・build後に自動デプロイされ、PRでは検証のみ行います。Viteは `GITHUB_REPOSITORY` からリポジトリ名を判定して `base` を設定します。
 
+### 設定画面からページ画像を更新する
+
+設定画面の「ページ画像」から、開催回ごとのログインページ画像と回答入力画面画像を保存できます。画像はブラウザでJPEG圧縮した後、設定JSONとともにZIPへまとめ、Private Storageの`page-images`バケットへ保存します。回答受付対象を切り替えると`activate-event` Edge FunctionがPages Workflowを起動します。Workflowは`page-images-archive` Edge Functionから15分有効な署名URLを取得し、ZIPをダウンロード・展開してからビルドします。通常の`main` pushでも同じ処理を行うため、コード更新後も現在開催中の画像が維持されます。公開画面はStorageではなくGitHub Pagesから画像を取得します。
+
+ローカル開発ではGitHub Actionsを起動せず、管理者チェック付きDB関数で回答受付対象を切り替えます。また、管理者がStorageへ保存したZIPをブラウザ内で展開してIndexedDBへ保持し、対象開催回の切替時にもStorageから読み直します。これにより、ログインページと回答入力画面でデプロイ前の画像を確認できます。このローカル経路は開発モードでのみ使用され、本番の切替・画像配信経路には影響しません。
+
+GitHub Appを作成し、対象リポジトリだけへインストールしてください。必要なRepository permissionは `Actions: Read and write`です。AppはWorkflow Dispatchだけを実行し、リポジトリの内容へ書き込みません。作成後、次の値をEdge Function Secretsへ登録します。
+
+```bash
+npx supabase secrets set \
+  GITHUB_APP_ID="GitHub App ID" \
+  GITHUB_APP_INSTALLATION_ID="Installation ID" \
+  GITHUB_APP_PRIVATE_KEY="$(cat private-key.pem)" \
+  GITHUB_REPOSITORY="owner/repository" \
+  GITHUB_PAGES_BRANCH="main" \
+  PAGE_DEPLOY_SECRET="十分に長いランダム値"
+```
+
+GitHubリポジトリのActions Variablesへ`PAGE_IMAGES_ENDPOINT`として`https://PROJECT_REF.supabase.co/functions/v1/page-images-archive`を、Actions SecretへSupabaseと同じ`PAGE_DEPLOY_SECRET`を登録してください。
+
+秘密鍵やInstallation Tokenを`VITE_*`、GitHub Pages、DBへ保存してはいけません。署名URLはGitHub Actions内でだけ取得し、15分で失効します。回答受付対象の変更から画像反映まではGitHub Actionsの実行時間がかかります。画像ZIPのStorage EgressはPagesデプロイ時に1回発生しますが、一般ユーザーの画像表示はGitHub Pages配信です。
+
 BrowserRouterを使用し、`public/404.html` が直接アクセスされたパスをSession Storageへ退避してSPAへ復元します。カスタムドメインなど公開パスを変える場合は404内のbase計算も確認してください。
 
 ## Supabaseの継続的デプロイ
