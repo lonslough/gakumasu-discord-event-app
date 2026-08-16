@@ -320,6 +320,11 @@ a {
   font-size: 13px;
 }
 
+.rules-source-select {
+  display: block;
+  margin-bottom: 18px;
+}
+
 .event-settings-actions {
   margin-top: 14px;
 }

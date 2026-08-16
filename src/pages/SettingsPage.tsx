@@ -30,6 +30,7 @@ export function SettingsPage() {
   const [selectedEventId, setSelectedEventId] = useState('')
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [rulesDraft, setRulesDraft] = useState('')
+  const [rulesSourceEventId, setRulesSourceEventId] = useState('')
   const [rulesSubmitting, setRulesSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -265,7 +266,7 @@ export function SettingsPage() {
                 <strong>ルール説明</strong>
                 <small>回答入力画面に表示するイベントルールを編集します。</small>
               </div>
-              <button type="button" className="button secondary" onClick={() => { setRulesDraft(rules); setShowRulesModal(true) }}>
+              <button type="button" className="button secondary" onClick={() => { setRulesDraft(rules); setRulesSourceEventId(''); setShowRulesModal(true) }}>
                 ルール説明変更
               </button>
             </div>
@@ -284,6 +285,24 @@ export function SettingsPage() {
           onClose={() => !rulesSubmitting && setShowRulesModal(false)}
           actions={<><button type="button" className="button secondary" disabled={rulesSubmitting} onClick={() => setShowRulesModal(false)}>キャンセル</button><button type="button" className="button primary" disabled={rulesSubmitting} onClick={() => void saveRules()}>{rulesSubmitting ? '保存中…' : '保存'}</button></>}
         >
+          <label className="rules-source-select" htmlFor="rules-source-event">
+            過去の開催回から呼び出す
+            <select
+              id="rules-source-event"
+              value={rulesSourceEventId}
+              onChange={(event) => {
+                const sourceEventId = event.target.value
+                setRulesSourceEventId(sourceEventId)
+                const sourceEvent = events.find((item) => item.id === sourceEventId)
+                if (sourceEvent) setRulesDraft(sourceEvent.rules_description)
+              }}
+            >
+              <option value="">選択してください</option>
+              {events
+                .filter((event) => event.id !== selectedEventId)
+                .map((event) => <option value={event.id} key={event.id}>{event.name}</option>)}
+            </select>
+          </label>
           <label htmlFor="rules-description">
             ルール説明
             <textarea id="rules-description" className="rules-textarea" value={rulesDraft} maxLength={maxRulesLength} onChange={(event) => setRulesDraft(event.target.value)} placeholder="イベントのルールを入力してください。改行もそのまま回答入力画面に反映されます。" />
