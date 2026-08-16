@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ReviewModal,
-  type ReviewImages,
 } from '../components/responses/ResponseModals'
 import { ResponseRankings } from '../components/responses/ResponseRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
 import { entryDivisionName, statusName } from '../components/responses/labels'
 import { useAuth } from '../contexts/AuthContext'
+import { useReviewImages } from '../hooks/useReviewImages'
 import {
   csvCell,
   filterAndSortResponses,
@@ -28,24 +28,10 @@ import type {
   CharacterOption,
   EntryDivision,
   EventEdition,
-  Submission,
   VerificationStatus,
 } from '../types'
 
-const baseName = (path: string) => path.split('/').pop() ?? path
 const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
-
-interface CachedReviewImages {
-  fingerprint: string
-  images: ReviewImages
-  complete: boolean
-}
-
-const revokeImageUrls = (images: ReviewImages) => {
-  Object.values(images).forEach((image) => {
-    if (image) URL.revokeObjectURL(image.url)
-  })
-}
 
 export function ResponsesPage() {
   const { session } = useAuth()
@@ -63,11 +49,8 @@ export function ResponsesPage() {
   const [score, setScore] = useState('')
   const [status, setStatus] = useState<VerificationStatus>('pending')
   const [note, setNote] = useState('')
-  const [reviewImages, setReviewImages] = useState<ReviewImages>({})
-  const [imagesLoading, setImagesLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const imageCacheRef = useRef(new Map<string, CachedReviewImages>())
-  const imageRequestRef = useRef(0)
+  const reviewImages = useReviewImages(setError)
 
   const load = useCallback(async () => {
     if (!selectedEventId) return
@@ -100,11 +83,6 @@ export function ResponsesPage() {
     void load()
   }, [load])
 
-  useEffect(() => {
-    const cache = imageCacheRef.current
-    return () => cache.forEach(({ images }) => revokeImageUrls(images))
-  }, [])
-
   const filtered = useMemo(
     () =>
       filterAndSortResponses(rows, search, categoryFilter, statusFilter, sort),
@@ -131,74 +109,12 @@ export function ResponsesPage() {
   )
 
   const edit = async (row: AdminSubmission) => {
-    const requestId = ++imageRequestRef.current
     setEditing(row)
     setScore(row.review?.confirmed_score?.toString() ?? '')
     setStatus(row.review?.verification_status ?? 'pending')
     setNote(row.review?.admin_note ?? '')
-    setReviewImages({})
-    setImagesLoading(true)
-
-    const { data: latestSubmission, error: latestSubmissionError } =
-      await supabase.from('submissions').select('*').eq('id', row.id).single()
-    if (latestSubmissionError) {
-      if (requestId === imageRequestRef.current) {
-        setError('提出画像の更新状態を確認できませんでした。')
-        setImagesLoading(false)
-      }
-      return
-    }
-    const current = latestSubmission
-      ? ({ ...row, ...(latestSubmission as Submission) } as AdminSubmission)
-      : row
-    if (requestId !== imageRequestRef.current) return
-    setEditing(current)
-
-    const paths = {
-      result: hasResultImage(current) ? current.score_image_path : null,
-      beginnerProof: current.beginner_proof_image_path,
-      loginDaysProof: current.login_days_proof_image_path,
-    }
-    const fingerprint = JSON.stringify(paths)
-    const cached = imageCacheRef.current.get(row.id)
-    if (cached?.fingerprint === fingerprint && cached.complete) {
-      setReviewImages(cached.images)
-      setImagesLoading(false)
-      return
-    }
-
-    const imageEntries = await Promise.all(
-      Object.entries(paths).map(async ([key, path]) => {
-        if (!path) return [key, undefined] as const
-        const { data, error: downloadError } = await supabase.storage
-          .from('submission-images')
-          .download(path)
-        if (downloadError) {
-          return [key, undefined] as const
-        }
-        return [
-          key,
-          { url: URL.createObjectURL(data), name: baseName(path) },
-        ] as const
-      }),
-    )
-    const images = Object.fromEntries(imageEntries) as ReviewImages
-    const failed =
-      Object.values(paths).filter(Boolean).length !==
-      Object.values(images).filter(Boolean).length
-    if (requestId !== imageRequestRef.current) {
-      revokeImageUrls(images)
-      return
-    }
-    if (cached) revokeImageUrls(cached.images)
-    imageCacheRef.current.set(row.id, {
-      fingerprint,
-      images,
-      complete: !failed,
-    })
-    if (failed) setError('一部の画像を開けませんでした。')
-    setReviewImages(images)
-    setImagesLoading(false)
+    const current = await reviewImages.load(row)
+    if (current) setEditing(current)
   }
 
   const saveReview = async () => {
@@ -321,16 +237,15 @@ export function ResponsesPage() {
           note={note}
           saving={saving}
           verificationDisabled={!hasResultImage(editing)}
-          images={reviewImages}
-          imagesLoading={imagesLoading}
+          images={reviewImages.images}
+          imagesLoading={reviewImages.loading}
           onScoreChange={setScore}
           onStatusChange={setStatus}
           onNoteChange={setNote}
           onSave={() => void saveReview()}
           onClose={() => {
-            imageRequestRef.current += 1
+            reviewImages.clear()
             setEditing(null)
-            setReviewImages({})
           }}
         />
       )}
