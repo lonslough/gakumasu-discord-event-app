@@ -6,6 +6,11 @@ import { supabase } from '../lib/supabase'
 import type { CharacterOption, EventEdition } from '../types'
 
 const maxRulesLength = 10000
+const newEventValue = '__new__'
+const emptyCharacters = (): CharacterOption[] => [
+  { id: '', name: '', shortName: '', enabled: true },
+  { id: '', name: '', shortName: '', enabled: true },
+]
 
 const toLocalDateTime = (value: string | null) => {
   if (!value) return ''
@@ -23,7 +28,6 @@ export function SettingsPage() {
   const [characters, setCharacters] = useState<CharacterOption[]>([])
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
-  const [newEventName, setNewEventName] = useState('')
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [rulesDraft, setRulesDraft] = useState('')
   const [rulesSubmitting, setRulesSubmitting] = useState(false)
@@ -44,13 +48,23 @@ export function SettingsPage() {
     }
     const loaded = (data ?? []) as EventEdition[]
     setEvents(loaded)
-    setSelectedEventId(preferredId ?? loaded.find((event) => event.is_active)?.id ?? loaded[0]?.id ?? '')
+    setSelectedEventId(preferredId ?? loaded.find((event) => event.is_active)?.id ?? loaded[0]?.id ?? newEventValue)
     setLoading(false)
   }
 
   useEffect(() => { void loadEvents() }, [])
 
   useEffect(() => {
+    if (selectedEventId === newEventValue) {
+      setRules('')
+      setEventName('')
+      setSubmissionStart('')
+      setSubmissionEnd('')
+      setCharacters(emptyCharacters())
+      setMessage('')
+      setError('')
+      return
+    }
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected) return
     setRules(selected.rules_description)
@@ -69,7 +83,7 @@ export function SettingsPage() {
       setError('開催回の名称を入力してください。')
       return
     }
-    if (characters.length !== 2 || characters[0].id === characters[1].id) {
+    if (characters.length !== 2 || characters.some((character) => !character.id) || characters[0].id === characters[1].id) {
       setError('異なるキャラクターを2名選択してください。')
       return
     }
@@ -84,25 +98,28 @@ export function SettingsPage() {
     setSubmitting(true)
     setMessage('')
     setError('')
-    const { error: updateError } = await supabase
-      .from('event_editions')
-      .update({
-        name: eventName.trim(),
-        rules_description: rules,
-        submission_start_at: submissionStart
-          ? new Date(submissionStart).toISOString()
-          : null,
-        submission_end_at: submissionEnd
-          ? new Date(submissionEnd).toISOString()
-          : null,
-        character_options: characters,
-        updated_by: session.user.id,
-      })
-      .eq('id', selectedEventId)
-    if (updateError) setError('設定の保存に失敗しました。')
-    else {
-      setMessage('設定を保存しました。')
-      await loadEvents(selectedEventId)
+    const values = {
+      name: eventName.trim(),
+      rules_description: rules,
+      submission_start_at: submissionStart ? new Date(submissionStart).toISOString() : null,
+      submission_end_at: submissionEnd ? new Date(submissionEnd).toISOString() : null,
+      character_options: characters,
+      updated_by: session.user.id,
+    }
+    if (selectedEventId === newEventValue) {
+      const { data, error: createError } = await supabase.from('event_editions').insert(values).select('id').single()
+      if (createError) setError('新しい開催回の作成に失敗しました。')
+      else {
+        await loadEvents(data.id)
+        setMessage('新しい開催回を作成しました。')
+      }
+    } else {
+      const { error: updateError } = await supabase.from('event_editions').update(values).eq('id', selectedEventId)
+      if (updateError) setError('設定の保存に失敗しました。')
+      else {
+        await loadEvents(selectedEventId)
+        setMessage('設定を保存しました。')
+      }
     }
     setSubmitting(false)
   }
@@ -112,6 +129,12 @@ export function SettingsPage() {
     setRulesSubmitting(true)
     setMessage('')
     setError('')
+    if (selectedEventId === newEventValue) {
+      setRules(rulesDraft)
+      setRulesSubmitting(false)
+      setShowRulesModal(false)
+      return
+    }
     const { error: updateError } = await supabase
       .from('event_editions')
       .update({ rules_description: rulesDraft, updated_by: session.user.id })
@@ -125,20 +148,6 @@ export function SettingsPage() {
     setShowRulesModal(false)
     setMessage('ルール説明を保存しました。')
     await loadEvents(selectedEventId)
-  }
-
-  const createEvent = async () => {
-    if (!session || !newEventName.trim()) return
-    setError('')
-    const { data, error: createError } = await supabase
-      .from('event_editions')
-      .insert({ name: newEventName.trim(), character_options: defaultCharacterOptions, updated_by: session.user.id })
-      .select('id')
-      .single()
-    if (createError) return setError('開催回を作成できませんでした。')
-    setNewEventName('')
-    await loadEvents(data.id)
-    setMessage('新しい開催回を作成しました。')
   }
 
   const activateEvent = async () => {
@@ -171,6 +180,7 @@ export function SettingsPage() {
                   編集する開催回
                   <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
+                    <option value={newEventValue}>新規開催</option>
                   </select>
                 </label>
                 <label>
@@ -179,13 +189,9 @@ export function SettingsPage() {
                 </label>
               </div>
               <div className="event-settings-actions">
-                <button type="button" className="button secondary small" disabled={events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
+                <button type="button" className="button secondary small" disabled={selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
                   この開催回を回答受付対象にする
                 </button>
-              </div>
-              <div className="event-create-row">
-                <input placeholder="例: 第2回" value={newEventName} maxLength={100} onChange={(event) => setNewEventName(event.target.value)} />
-                <button type="button" className="button secondary small" disabled={!newEventName.trim()} onClick={() => void createEvent()}>新しい開催回を作成</button>
               </div>
             </fieldset>
             <fieldset className="settings-section">
@@ -226,9 +232,10 @@ export function SettingsPage() {
                           value={character.id}
                           onChange={(event) => {
                             const selected = characterRoster.find((option) => option.id === event.target.value)
-                            if (selected) setCharacters((current) => current.map((item, itemIndex) => itemIndex === index ? selected : item))
+                            setCharacters((current) => current.map((item, itemIndex) => itemIndex === index ? (selected ?? emptyCharacters()[0]) : item))
                           }}
                         >
+                          <option value="">未選択</option>
                           {characterRoster
                             .filter((option) => option.id === character.id || !characters.some((selected, selectedIndex) => selectedIndex !== index && selected.id === option.id))
                             .map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}

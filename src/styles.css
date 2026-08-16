@@ -324,15 +324,6 @@ a {
   margin-top: 14px;
 }
 
-.event-create-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-
 .event-history-selector {
   margin-bottom: 18px;
   padding: 18px;
@@ -1364,10 +1355,6 @@ td small {
 }
 
 @media (max-width: 620px) {
-  .event-create-row {
-    grid-template-columns: 1fr;
-  }
-
   .rules-setting-row {
     align-items: stretch;
     flex-direction: column;
