@@ -21,6 +21,7 @@
         "npm:eslint-plugin-react-hooks@^5.2.0",
         "npm:eslint-plugin-react-refresh@~0.4.20",
         "npm:eslint@^9.30.1",
+        "npm:fflate@~0.8.3",
         "npm:globals@^16.3.0",
         "npm:heic2any@^0.0.4",
         "npm:jsdom@^26.1.0",

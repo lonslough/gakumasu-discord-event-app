@@ -26,6 +26,7 @@ export interface EventEdition {
   submission_start_at: string | null
   submission_end_at: string | null
   character_options: CharacterOption[]
+  page_images_path: string | null
   is_active: boolean
   created_at: string
   updated_at: string

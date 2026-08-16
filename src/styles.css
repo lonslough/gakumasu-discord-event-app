@@ -134,7 +134,8 @@ a {
   overflow: hidden;
   display: flex;
   justify-content: center;
-  height: clamp(180px, 26vw, 280px);
+  height: auto;
+  aspect-ratio: 16 / 5;
   margin-bottom: 20px;
   padding: 0;
   border: 1px solid rgba(139, 124, 255, 0.35);
@@ -226,12 +227,12 @@ a {
 }
 
 .settings-section {
-  margin-bottom: 15px;
+  margin-bottom: 24px;
 }
 
 .settings-section legend {
   margin-bottom: 10px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
 }
 
@@ -327,6 +328,22 @@ a {
 
 .event-settings-actions {
   margin-top: 14px;
+}
+
+.page-image-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.page-image-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  object-fit: cover;
 }
 
 .event-history-selector {
@@ -1360,6 +1377,10 @@ td small {
 }
 
 @media (max-width: 620px) {
+  .page-image-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
   .rules-setting-row {
     align-items: stretch;
     flex-direction: column;
@@ -1441,7 +1462,7 @@ td small {
   }
 
   .entry-title-art {
-    height: 145px;
+    height: auto;
     margin-bottom: 22px;
     border-radius: 12px;
   }
@@ -1453,4 +1474,32 @@ td small {
   .account {
     gap: 5px;
   }
+}
+
+.image-crop-canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 58vh;
+  background: #090b14;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.image-crop-canvas:active {
+  cursor: grabbing;
+}
+
+.image-crop-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.image-crop-controls input[type='range'] {
+  width: 100%;
 }
