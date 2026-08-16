@@ -11,6 +11,7 @@ function row(
 ): AdminSubmission {
   return {
     id,
+    event_id: 'event-1',
     user_id: id,
     discord_username: id,
     producer_name: id,

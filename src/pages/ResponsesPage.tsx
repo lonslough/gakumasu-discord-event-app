@@ -27,6 +27,7 @@ import type {
   Category,
   CharacterOption,
   EntryDivision,
+  EventEdition,
   Submission,
   VerificationStatus,
 } from '../types'
@@ -51,6 +52,8 @@ export function ResponsesPage() {
   const [rows, setRows] = useState<AdminSubmission[]>([])
   const [registered, setRegistered] = useState(0)
   const [characters, setCharacters] = useState<CharacterOption[]>(defaultCharacterOptions)
+  const [events, setEvents] = useState<EventEdition[]>([])
+  const [selectedEventId, setSelectedEventId] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -67,19 +70,30 @@ export function ResponsesPage() {
   const imageRequestRef = useRef(0)
 
   const load = useCallback(async () => {
+    if (!selectedEventId) return
     setError('')
-    const [{ data, error: rowsError }, { data: countData }, { data: settingsData }] = await Promise.all(
+    const [{ data, error: rowsError }, { data: countData }] = await Promise.all(
       [
-        supabase.rpc('list_admin_submissions'),
+        supabase.rpc('list_admin_submissions', { p_event_id: selectedEventId }),
         supabase.rpc('count_registered_users'),
-        supabase.from('event_settings').select('character_options').eq('id', true).single(),
       ],
     )
     if (rowsError) setError('回答一覧を読み込めませんでした。')
     else setRows((data ?? []) as AdminSubmission[])
     setRegistered(Number(countData ?? 0))
-    if (settingsData?.character_options)
-      setCharacters(settingsData.character_options as CharacterOption[])
+    const selected = events.find((event) => event.id === selectedEventId)
+    if (selected) setCharacters(selected.character_options)
+  }, [events, selectedEventId])
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      const { data, error: eventsError } = await supabase.from('event_editions').select('*').order('created_at', { ascending: false })
+      if (eventsError) return setError('開催回を読み込めませんでした。')
+      const loaded = (data ?? []) as EventEdition[]
+      setEvents(loaded)
+      setSelectedEventId(loaded.find((event) => event.is_active)?.id ?? loaded[0]?.id ?? '')
+    }
+    void loadEvents()
   }, [])
 
   useEffect(() => {
@@ -277,6 +291,10 @@ export function ResponsesPage() {
           CSV出力
         </button>
       </div>
+
+      <section className="card event-history-selector">
+        <label>表示する開催回<select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>{events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（開催中）' : ''}</option>)}</select></label>
+      </section>
 
       {error && <div className="notice error">{error}</div>}
       <ResponseStats registered={registered} stats={stats} characters={characters} />

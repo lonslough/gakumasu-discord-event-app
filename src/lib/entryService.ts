@@ -76,12 +76,14 @@ async function uploadSubmissionImage(
 
 interface SaveEntryInput {
   userId: string
+  eventId: string
   values: EntryValues
   existing: Submission | null
 }
 
 export async function saveEntry({
   userId,
+  eventId,
   values,
   existing,
 }: SaveEntryInput): Promise<void> {
@@ -126,6 +128,7 @@ export async function saveEntry({
     const { error } = await supabase.from('submissions').upsert(
       {
         user_id: userId,
+        event_id: eventId,
         discord_username: values.discordUsername.trim(),
         producer_name: values.producerName.trim(),
         category: values.category,
@@ -135,7 +138,7 @@ export async function saveEntry({
         beginner_proof_image_path: beginnerProofPath,
         login_days_proof_image_path: loginDaysProofPath,
       },
-      { onConflict: 'user_id' },
+      { onConflict: 'event_id,user_id' },
     )
     if (error) throw new Error('database')
 
