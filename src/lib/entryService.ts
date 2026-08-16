@@ -40,8 +40,9 @@ export function getSettingsRefreshDelay(
   const serverNow = new Date(serverNowValue).getTime()
   const start = startValue ? new Date(startValue).getTime() : null
   const end = endValue ? new Date(endValue).getTime() : null
-  const boundary =
-    start && serverNow < start ? start : end && serverNow <= end ? end : null
+  let boundary: number | null = null
+  if (start && serverNow < start) boundary = start
+  else if (end && serverNow <= end) boundary = end
 
   if (!boundary) return null
   return Math.min(
@@ -81,6 +82,28 @@ interface SaveEntryInput {
   existing: Submission | null
 }
 
+async function resolveResultPath(
+  userId: string,
+  file: File | null,
+  existing: Submission | null,
+): Promise<string | null> {
+  if (file) return uploadSubmissionImage(userId, file, 'score')
+  if (existing?.deck_image_path) return null
+  return existing?.score_image_path ?? null
+}
+
+async function resolveProofPath(
+  userId: string,
+  enabled: boolean,
+  file: File | null,
+  existingPath: string | null | undefined,
+  kind: 'beginner-proof' | 'login-days-proof',
+): Promise<string | null> {
+  if (!enabled) return null
+  if (file) return uploadSubmissionImage(userId, file, kind)
+  return existingPath ?? null
+}
+
 export async function saveEntry({
   userId,
   eventId,
@@ -92,36 +115,31 @@ export async function saveEntry({
   const uploaded: string[] = []
 
   try {
-    const resultPath = values.resultFile
-      ? await uploadSubmissionImage(userId, values.resultFile, 'score')
-      : existing?.deck_image_path
-        ? null
-        : (existing?.score_image_path ?? null)
+    const resultPath = await resolveResultPath(
+      userId,
+      values.resultFile,
+      existing,
+    )
     if (resultPath && values.resultFile) uploaded.push(resultPath)
 
-    const beginnerProofPath =
-      entryDivision === 'beginner'
-        ? values.beginnerProofFile
-          ? await uploadSubmissionImage(
-              userId,
-              values.beginnerProofFile,
-              'beginner-proof',
-            )
-          : existing?.beginner_proof_image_path
-        : null
+    const isBeginner = entryDivision === 'beginner'
+    const beginnerProofPath = await resolveProofPath(
+      userId,
+      isBeginner,
+      values.beginnerProofFile,
+      existing?.beginner_proof_image_path,
+      'beginner-proof',
+    )
     if (values.beginnerProofFile && beginnerProofPath)
       uploaded.push(beginnerProofPath)
 
-    const loginDaysProofPath =
-      entryDivision === 'beginner'
-        ? values.loginDaysProofFile
-          ? await uploadSubmissionImage(
-              userId,
-              values.loginDaysProofFile,
-              'login-days-proof',
-            )
-          : existing?.login_days_proof_image_path
-        : null
+    const loginDaysProofPath = await resolveProofPath(
+      userId,
+      isBeginner,
+      values.loginDaysProofFile,
+      existing?.login_days_proof_image_path,
+      'login-days-proof',
+    )
     if (values.loginDaysProofFile && loginDaysProofPath)
       uploaded.push(loginDaysProofPath)
 

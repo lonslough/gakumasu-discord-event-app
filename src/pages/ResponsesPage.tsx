@@ -210,6 +210,16 @@ export function ResponsesPage() {
     const nextStatus = canEditVerification
       ? status
       : (editing.review?.verification_status ?? 'pending')
+    let verifiedAt: string | null = null
+    let verifiedBy: string | null = null
+    if (nextStatus === 'verified') {
+      verifiedAt = canEditVerification
+        ? new Date().toISOString()
+        : (editing.review?.verified_at ?? null)
+      verifiedBy = canEditVerification
+        ? session.user.id
+        : (editing.review?.verified_by ?? null)
+    }
     setSaving(true)
     const { error: saveError } = await supabase
       .from('submission_reviews')
@@ -220,18 +230,8 @@ export function ResponsesPage() {
           : (editing.review?.confirmed_score ?? null),
         verification_status: nextStatus,
         admin_note: note.trim(),
-        verified_at:
-          nextStatus === 'verified'
-            ? canEditVerification
-              ? new Date().toISOString()
-              : (editing.review?.verified_at ?? null)
-            : null,
-        verified_by:
-          nextStatus === 'verified'
-            ? canEditVerification
-              ? session.user.id
-              : (editing.review?.verified_by ?? null)
-            : null,
+        verified_at: verifiedAt,
+        verified_by: verifiedBy,
       })
     setSaving(false)
     if (saveError) return setError('確認結果を保存できませんでした。')

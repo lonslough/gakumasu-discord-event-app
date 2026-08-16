@@ -22,6 +22,22 @@ const formatPeriodDate = (value: string) =>
     minute: '2-digit',
   })
 
+function saveFailureMessage(error: unknown): string {
+  if (!(error instanceof Error))
+    return '回答の保存に失敗しました。入力内容は維持されています。'
+
+  switch (error.message) {
+    case 'compression':
+      return '画像を圧縮できませんでした。別の画像形式でお試しください。'
+    case 'period':
+      return '現在は応募期間外のため、回答を送信できません。'
+    case 'upload':
+      return '画像のアップロードに失敗しました。通信状態を確認してください。'
+    default:
+      return '回答の保存に失敗しました。入力内容は維持されています。'
+  }
+}
+
 export function EntryPage() {
   const { session } = useAuth()
   const location = useLocation()
@@ -128,17 +144,7 @@ export function EntryPage() {
         if (latestSettings && !latestSettings.accepting_submissions)
           saveError = new Error('period')
       }
-      setFailure(
-        saveError instanceof Error
-          ? saveError.message === 'compression'
-            ? '画像を圧縮できませんでした。別の画像形式でお試しください。'
-            : saveError.message === 'period'
-              ? '現在は応募期間外のため、回答を送信できません。'
-              : saveError.message === 'upload'
-                ? '画像のアップロードに失敗しました。通信状態を確認してください。'
-              : '回答の保存に失敗しました。入力内容は維持されています。'
-          : '回答の保存に失敗しました。入力内容は維持されています。',
-      )
+      setFailure(saveFailureMessage(saveError))
     } finally {
       setSubmitting(false)
     }
@@ -150,6 +156,10 @@ export function EntryPage() {
         <div className="spinner" />
       </main>
     )
+  let submitLabel = '回答を送信する'
+  if (submitting) submitLabel = '送信中…'
+  else if (existing) submitLabel = '回答を上書きする'
+
   return (
     <main className="page narrow">
       <div className="entry-title-art" aria-hidden="true">
@@ -225,11 +235,7 @@ export function EntryPage() {
           className="button primary submit-button"
           disabled={submitting || !eventSettings?.accepting_submissions}
         >
-          {submitting
-            ? '送信中…'
-            : existing
-              ? '回答を上書きする'
-              : '回答を送信する'}
+          {submitLabel}
         </button>
       </form>
       {confirming && (
