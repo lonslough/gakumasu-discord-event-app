@@ -105,7 +105,7 @@ describe('SettingsPage ページ画像', () => {
     })
   })
 
-  it('別開催回へ保存した画像が、画面を離れて戻った後も保存済みとして表示される', async () => {
+  it('別開催回へ保存した画像が、画面を離れて戻った後もプレビュー表示される', async () => {
     const firstVisit = render(<SettingsPage />)
     const editionSelect = await screen.findByLabelText('編集する開催回')
     fireEvent.change(editionSelect, {
@@ -118,9 +118,10 @@ describe('SettingsPage ページ画像', () => {
     fireEvent.change(screen.getByLabelText('回答入力画面画像'), {
       target: { files: [imageFile('entry.jpg')] },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'ページ画像をStorageへ保存' }))
+    expect(screen.queryByRole('button', { name: 'ページ画像をStorageへ保存' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
 
-    await screen.findByText('開催回のページ画像を保存しました。「この開催回を回答受付対象にする」でこのイベントを対象へ切り替えると反映されます。')
+    await screen.findByText('設定を保存しました。')
     expect(mocks.upload).toHaveBeenCalledWith(
       '00000000-0000-0000-0000-000000000002/page-images.zip',
       expect.any(Blob),
@@ -141,9 +142,6 @@ describe('SettingsPage ページ画像', () => {
       target: { value: '00000000-0000-0000-0000-000000000002' },
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('この開催回のページ画像はStorageへ保存済みです。')).toBeInTheDocument()
-    })
     await waitFor(() => {
       expect(screen.getByAltText('ログインページ画像のプレビュー')).toHaveAttribute('src', 'blob:preview')
       expect(screen.getByAltText('回答入力画面画像のプレビュー')).toHaveAttribute('src', 'blob:preview')

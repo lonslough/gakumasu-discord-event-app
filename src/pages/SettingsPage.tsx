@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Modal } from '../components/Modal'
-import { PageImageSettings } from '../components/settings/PageImageSettings'
+import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
 import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
@@ -38,6 +38,7 @@ export function SettingsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [pageImageFiles, setPageImageFiles] = useState<PageImageFiles>({ login: null, entry: null })
 
   const loadEvents = async (preferredId?: string) => {
     const { data, error: loadError } = await supabase
@@ -58,6 +59,7 @@ export function SettingsPage() {
   useEffect(() => { void loadEvents() }, [])
 
   useEffect(() => {
+    setPageImageFiles({ login: null, entry: null })
     if (selectedEventId === newEventValue) {
       setRules('')
       setEventName('')
@@ -98,6 +100,10 @@ export function SettingsPage() {
       setError('応募終了日時は応募開始日時より後に設定してください。')
       return
     }
+    if (Boolean(pageImageFiles.login) !== Boolean(pageImageFiles.entry)) {
+      setError('ページ画像はログインページ用と回答入力画面用の両方を選択してください。')
+      return
+    }
     setSubmitting(true)
     setMessage('')
     setError('')
@@ -109,21 +115,40 @@ export function SettingsPage() {
       character_options: characters,
       updated_by: session.user.id,
     }
-    if (selectedEventId === newEventValue) {
+    const creating = selectedEventId === newEventValue
+    let savedEventId = selectedEventId
+    if (creating) {
       const { data, error: createError } = await supabase.from('event_editions').insert(values).select('id').single()
-      if (createError) setError('新しい開催回の作成に失敗しました。')
-      else {
-        await loadEvents(data.id)
-        setMessage('新しい開催回を作成しました。')
+      if (createError) {
+        setError('新しい開催回の作成に失敗しました。')
+        setSubmitting(false)
+        return
       }
+      savedEventId = data.id
     } else {
       const { error: updateError } = await supabase.from('event_editions').update(values).eq('id', selectedEventId)
-      if (updateError) setError('設定の保存に失敗しました。')
-      else {
-        await loadEvents(selectedEventId)
-        setMessage('設定を保存しました。')
+      if (updateError) {
+        setError('設定の保存に失敗しました。')
+        setSubmitting(false)
+        return
       }
     }
+    if (pageImageFiles.login && pageImageFiles.entry) {
+      try {
+        await uploadPageImages(
+          savedEventId,
+          pageImageFiles,
+          Boolean(events.find((item) => item.id === savedEventId)?.is_active),
+        )
+      } catch {
+        await loadEvents(savedEventId)
+        setError('開催回の設定は保存しましたが、ページ画像をStorageへ保存できませんでした。')
+        setSubmitting(false)
+        return
+      }
+    }
+    await loadEvents(savedEventId)
+    setMessage(creating ? '新しい開催回を作成しました。' : '設定を保存しました。')
     setSubmitting(false)
   }
 
@@ -236,11 +261,10 @@ export function SettingsPage() {
               </div>
             </fieldset>
             <PageImageSettings
-              eventId={selectedEventId === newEventValue ? null : selectedEventId}
               isActive={Boolean(events.find((event) => event.id === selectedEventId)?.is_active)}
-              hasImages={Boolean(events.find((event) => event.id === selectedEventId)?.page_images_path)}
               pageImagesPath={events.find((event) => event.id === selectedEventId)?.page_images_path ?? null}
-              onSaved={() => loadEvents(selectedEventId)}
+              files={pageImageFiles}
+              onFilesChange={setPageImageFiles}
             />
             <fieldset className="settings-section">
               <legend>対象キャラクター</legend>
