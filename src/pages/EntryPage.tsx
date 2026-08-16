@@ -22,6 +22,22 @@ const formatPeriodDate = (value: string) =>
     minute: '2-digit',
   })
 
+function saveFailureMessage(error: unknown): string {
+  if (!(error instanceof Error))
+    return '回答の保存に失敗しました。入力内容は維持されています。'
+
+  switch (error.message) {
+    case 'compression':
+      return '画像を圧縮できませんでした。別の画像形式でお試しください。'
+    case 'period':
+      return '現在は応募期間外のため、回答を送信できません。'
+    case 'upload':
+      return '画像のアップロードに失敗しました。通信状態を確認してください。'
+    default:
+      return '回答の保存に失敗しました。入力内容は維持されています。'
+  }
+}
+
 export function EntryPage() {
   const { session } = useAuth()
   const location = useLocation()
@@ -40,11 +56,12 @@ export function EntryPage() {
   const rulesAutoShown = useRef(false)
 
   const load = useCallback(async () => {
-    if (!session) return
+    if (!session || !eventSettings?.event_id) return
     const { data, error } = await supabase
       .from('submissions')
       .select('*')
       .eq('user_id', session.user.id)
+      .eq('event_id', eventSettings.event_id)
       .maybeSingle()
     if (error) setFailure('回答情報の読み込みに失敗しました。')
     if (data) {
@@ -53,7 +70,7 @@ export function EntryPage() {
       setValues(entryValuesFromSubmission(submission))
     }
     setLoading(false)
-  }, [session])
+  }, [session, eventSettings?.event_id])
   useEffect(() => {
     void load()
   }, [load])
@@ -113,7 +130,7 @@ export function EntryPage() {
     try {
       const latestSettings = await loadEventSettings()
       if (!latestSettings?.accepting_submissions) throw new Error('period')
-      await saveEntry({ userId: session.user.id, values, existing })
+      await saveEntry({ userId: session.user.id, eventId: latestSettings.event_id, values, existing })
       setMessage('回答を保存しました。')
       await load()
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -127,17 +144,7 @@ export function EntryPage() {
         if (latestSettings && !latestSettings.accepting_submissions)
           saveError = new Error('period')
       }
-      setFailure(
-        saveError instanceof Error
-          ? saveError.message === 'compression'
-            ? '画像を圧縮できませんでした。別の画像形式でお試しください。'
-            : saveError.message === 'period'
-              ? '現在は応募期間外のため、回答を送信できません。'
-              : saveError.message === 'upload'
-                ? '画像のアップロードに失敗しました。通信状態を確認してください。'
-              : '回答の保存に失敗しました。入力内容は維持されています。'
-          : '回答の保存に失敗しました。入力内容は維持されています。',
-      )
+      setFailure(saveFailureMessage(saveError))
     } finally {
       setSubmitting(false)
     }
@@ -149,6 +156,10 @@ export function EntryPage() {
         <div className="spinner" />
       </main>
     )
+  let submitLabel = '回答を送信する'
+  if (submitting) submitLabel = '送信中…'
+  else if (existing) submitLabel = '回答を上書きする'
+
   return (
     <main className="page narrow">
       <div className="entry-title-art" aria-hidden="true">
@@ -160,7 +171,7 @@ export function EntryPage() {
       <div className="page-title">
         <div>
           <p className="eyebrow">EVENT ENTRY</p>
-          <h1>回答入力</h1>
+          <h1>{eventSettings?.event_name ?? '回答入力'}</h1>
           <p>イベントへの応募情報と確認画像を登録してください。</p>
         </div>
         <div className="page-title-actions">
@@ -224,11 +235,7 @@ export function EntryPage() {
           className="button primary submit-button"
           disabled={submitting || !eventSettings?.accepting_submissions}
         >
-          {submitting
-            ? '送信中…'
-            : existing
-              ? '回答を上書きする'
-              : '回答を送信する'}
+          {submitLabel}
         </button>
       </form>
       {confirming && (

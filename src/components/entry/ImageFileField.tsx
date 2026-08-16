@@ -30,6 +30,10 @@ export function ImageFileField({
   const [existingLoading, setExistingLoading] = useState(false)
   const [existingError, setExistingError] = useState('')
 
+  let existingButtonLabel = '回答済み画像を確認する'
+  if (existingLoading) existingButtonLabel = '読み込み中…'
+  else if (showExisting) existingButtonLabel = '回答済み画像を閉じる'
+
   useEffect(() => {
     if (!file || !['image/jpeg', 'image/png'].includes(file.type)) {
       setSelectedPreview(null)
@@ -120,11 +124,7 @@ export function ImageFileField({
               disabled={existingLoading}
               onClick={() => void toggleExisting()}
             >
-              {existingLoading
-                ? '読み込み中…'
-                : showExisting
-                  ? '回答済み画像を閉じる'
-                  : '回答済み画像を確認する'}
+              {existingButtonLabel}
             </button>
           )}
         </div>

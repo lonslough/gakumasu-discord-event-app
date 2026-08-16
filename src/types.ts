@@ -9,12 +9,26 @@ export interface CharacterOption {
 }
 
 export interface EventSettings {
+  event_id: string
+  event_name: string
   rules_description: string
   submission_start_at: string | null
   submission_end_at: string | null
   server_now: string
   accepting_submissions: boolean
   character_options: CharacterOption[]
+}
+
+export interface EventEdition {
+  id: string
+  name: string
+  rules_description: string
+  submission_start_at: string | null
+  submission_end_at: string | null
+  character_options: CharacterOption[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 export type EntryDivision = 'open' | 'switch_off' | 'beginner'
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
@@ -29,6 +43,7 @@ export interface Profile {
 
 export interface Submission {
   id: string
+  event_id: string
   user_id: string
   discord_username: string
   producer_name: string

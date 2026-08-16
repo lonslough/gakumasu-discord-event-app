@@ -30,6 +30,7 @@ import type { Submission } from '../types'
 
 const existingSubmission: Submission = {
   id: 'submission-id',
+  event_id: 'event-id',
   user_id: 'user-id',
   discord_username: 'discord',
   producer_name: 'producer',
@@ -85,6 +86,7 @@ describe('saveEntry', () => {
 
     await saveEntry({
       userId: existingSubmission.user_id,
+      eventId: existingSubmission.event_id,
       values,
       existing: existingSubmission,
     })
@@ -112,6 +114,7 @@ describe('saveEntry', () => {
     await expect(
       saveEntry({
         userId: existingSubmission.user_id,
+        eventId: existingSubmission.event_id,
         values,
         existing: existingSubmission,
       }),
