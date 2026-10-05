@@ -8,6 +8,7 @@ import {
 } from '../lib/validation'
 import { isConfigured, supabase } from '../lib/supabase'
 import { siteAssetUrl, useSiteConfig } from '../lib/siteConfig'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 export function LoginPage() {
   const siteConfig = useSiteConfig()
@@ -38,6 +39,9 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
       <section className="login-panel">
         <img
           className="login-hero-image"

@@ -15,6 +15,7 @@
 | ユーザーID | maxLength=32、入力ごとにtrim・小文字化、autocomplete=username |
 | パスワード | 必須、password入力、autocomplete=current-password |
 | ログイン | 認証中またはSupabase設定不足でdisabled |
+| テーマ切替 | 右上でライト／ダークを手動切替。端末連動と保存規則は共通設計を参照 |
 
 IDは3〜32文字、半角英数字・ピリオド・ハイフン・アンダースコア。validateUserIdを通過後、内部メールへ変換してsignInWithPasswordへ渡します。
 
@@ -33,4 +34,4 @@ IDは3〜32文字、半角英数字・ピリオド・ハイフン・アンダー
 
 ## 実装根拠
 
-[LoginPage.tsx](../../src/pages/LoginPage.tsx)、[validation.ts](../../src/lib/validation.ts)、[AuthContext.tsx](../../src/contexts/AuthContext.tsx)、[siteConfig.ts](../../src/lib/siteConfig.ts)。
+[LoginPage.tsx](../../src/pages/LoginPage.tsx)、[ThemeToggle.tsx](../../src/components/ThemeToggle.tsx)、[validation.ts](../../src/lib/validation.ts)、[AuthContext.tsx](../../src/contexts/AuthContext.tsx)、[siteConfig.ts](../../src/lib/siteConfig.ts)。

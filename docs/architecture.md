@@ -50,11 +50,13 @@ basenameはViteのBASE_URLから末尾スラッシュを除いて使用します
 
 ## 共通UI
 
-Headerは回答入力を全認証ユーザーへ、ユーザー登録・回答結果・設定をadminへ表示します。ログアウトはsignOut完了後に `/login` へ移動。管理者用の折りたたみメニューはクリック、ナビゲーション選択、Escapeで開閉します。
+Headerは回答入力を全認証ユーザーへ、ユーザー登録・回答結果・設定をadminへ表示します。ログアウトはsignOut完了後に `/login` へ移動。管理者用の折りたたみメニューはクリック、ナビゲーション選択、Escapeで開閉します。テーマ切替は全認証画面のHeaderとログイン画面右上に表示します。
 
 Modalはrole=dialog、aria-modal、見出し参照と初期フォーカスを持ち、Escape・背景クリック・×でonCloseを呼びます。wideで横幅を変更します。フォーカストラップや閉じた際の元要素へのフォーカス復元は実装されていません。処理中に閉じられるかは各呼出元のonCloseに依存します。
 
-styles.cssに日本語フォント、ダーク配色、共通カード・通知・入力・表・ランキングを集約し、900px以下と620px以下のメディアクエリーで配置を調整します。ルール説明は改行を保持して表示します。設定画面の画像調整はcanvasを使用します。
+styles.cssに日本語フォント、ライト／ダーク配色、共通カード・通知・入力・表・ランキングを集約し、900px以下と620px以下のメディアクエリーで配置を調整します。紫とシアンを両テーマのアクセントに使用します。ルール説明は改行を保持して表示します。設定画面の画像調整はcanvasを使用します。
+
+初回表示はインラインスクリプトで `prefers-color-scheme` を読み、描画前にhtml要素の `data-theme` と `color-scheme` を設定します。`localStorage` の `gakumasu-theme` に有効な手動選択があればそちらを優先します。手動選択前は端末設定の変更へ追従し、切替ボタンを押すと選択したテーマを保存します。Storageを利用できない場合も表示中のページには反映します。
 
 ## データ境界と既存の制限
 
@@ -64,4 +66,4 @@ styles.cssに日本語フォント、ダーク配色、共通カード・通知�
 
 ## 実装根拠
 
-[main.tsx](../src/main.tsx)、[Routes.tsx](../src/components/Routes.tsx)、[AuthContext.tsx](../src/contexts/AuthContext.tsx)、[supabase.ts](../src/lib/supabase.ts)、[Header.tsx](../src/components/Header.tsx)、[Modal.tsx](../src/components/Modal.tsx)、[types.ts](../src/types.ts)、[styles.css](../src/styles.css)、[index.html](../index.html)、[404.html](../public/404.html)。
+[main.tsx](../src/main.tsx)、[Routes.tsx](../src/components/Routes.tsx)、[AuthContext.tsx](../src/contexts/AuthContext.tsx)、[supabase.ts](../src/lib/supabase.ts)、[Header.tsx](../src/components/Header.tsx)、[ThemeToggle.tsx](../src/components/ThemeToggle.tsx)、[theme.ts](../src/lib/theme.ts)、[Modal.tsx](../src/components/Modal.tsx)、[types.ts](../src/types.ts)、[styles.css](../src/styles.css)、[index.html](../index.html)、[404.html](../public/404.html)。
