@@ -1,0 +1,4 @@
+interface:
+  display_name: "学マスアプリ開発"
+  short_description: "短い要望から仕様の対話整理・実装・画面検証・全画面設計書更新まで実行"
+  default_prompt: "$gakumasu-dev 回答一覧に応募部門の絞り込みを追加したい"
