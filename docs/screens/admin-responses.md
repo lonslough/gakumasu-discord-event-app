@@ -6,6 +6,8 @@
 
 `/admin/responses`、admin専用。event_editionsをcreated_at降順で取得し、active回、なければ先頭を選択。list_admin_submissions(p_event_id)とcount_registered_usersを並列取得します。ページネーションはありません。
 
+共通Headerにライト／ダークテーマの切替を表示します。端末連動と保存規則は[共通設計](../architecture.md)を参照します。
+
 ## 集計・ランキング・一覧
 
 | 領域 | 計算・操作 |

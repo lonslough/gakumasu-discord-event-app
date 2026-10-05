@@ -3,10 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#111527" />
+    <meta name="theme-color" content="#6657d9" />
     <title>強化月間 エントリー</title>
     <script>
       ;(function () {
+        var theme
+        try {
+          var storedTheme = localStorage.getItem('gakumasu-theme')
+          if (storedTheme === 'light' || storedTheme === 'dark') theme = storedTheme
+        } catch (_) {
+          // Continue with the device setting when storage is unavailable.
+        }
+        if (!theme) {
+          theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+
         var redirect = sessionStorage.getItem('spa-redirect')
         if (redirect) {
           sessionStorage.removeItem('spa-redirect')

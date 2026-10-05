@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Header() {
   const { profile, signOut } = useAuth()
@@ -61,6 +62,7 @@ export function Header() {
           <span />
         </button>
       )}
+      <ThemeToggle />
       <div className="account">
         <span>
           <small>ログイン中</small>
