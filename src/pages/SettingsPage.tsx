@@ -1,8 +1,17 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
+import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
+import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
+import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
+import type { CharacterOption, EventEdition } from '../types'
 
-const maxRulesLength = 10000
+const newEventValue = '__new__'
+const emptyCharacters = (): CharacterOption[] => [
+  { id: '', name: '', shortName: '', enabled: true },
+  { id: '', name: '', shortName: '', enabled: true },
+]
 
 const toLocalDateTime = (value: string | null) => {
   if (!value) return ''
@@ -14,34 +23,74 @@ const toLocalDateTime = (value: string | null) => {
 export function SettingsPage() {
   const { session } = useAuth()
   const [rules, setRules] = useState('')
+  const [eventName, setEventName] = useState('')
   const [submissionStart, setSubmissionStart] = useState('')
   const [submissionEnd, setSubmissionEnd] = useState('')
+  const [characters, setCharacters] = useState<CharacterOption[]>([])
+  const [events, setEvents] = useState<EventEdition[]>([])
+  const [selectedEventId, setSelectedEventId] = useState('')
+  const [showRulesModal, setShowRulesModal] = useState(false)
+  const [rulesDraft, setRulesDraft] = useState('')
+  const [rulesSourceEventId, setRulesSourceEventId] = useState('')
+  const [rulesSubmitting, setRulesSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [pageImageFiles, setPageImageFiles] = useState<PageImageFiles>({ login: null, entry: null })
+
+  const loadEvents = async (preferredId?: string) => {
+    const { data, error: loadError } = await supabase
+      .from('event_editions')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (loadError) {
+      setError('開催回を読み込めませんでした。')
+      setLoading(false)
+      return
+    }
+    const loaded = (data ?? []) as EventEdition[]
+    setEvents(loaded)
+    setSelectedEventId(preferredId ?? loaded.find((event) => event.is_active)?.id ?? loaded[0]?.id ?? newEventValue)
+    setLoading(false)
+  }
+
+  useEffect(() => { void loadEvents() }, [])
 
   useEffect(() => {
-    const load = async () => {
-      const { data, error: loadError } = await supabase
-        .from('event_settings')
-        .select('rules_description, submission_start_at, submission_end_at')
-        .eq('id', true)
-        .single()
-      if (loadError) setError('ルール説明を読み込めませんでした。')
-      else {
-        setRules(data.rules_description)
-        setSubmissionStart(toLocalDateTime(data.submission_start_at))
-        setSubmissionEnd(toLocalDateTime(data.submission_end_at))
-      }
-      setLoading(false)
+    setPageImageFiles({ login: null, entry: null })
+    if (selectedEventId === newEventValue) {
+      setRules('')
+      setEventName('')
+      setSubmissionStart('')
+      setSubmissionEnd('')
+      setCharacters(emptyCharacters())
+      setMessage('')
+      setError('')
+      return
     }
-    void load()
-  }, [])
+    const selected = events.find((event) => event.id === selectedEventId)
+    if (!selected) return
+    setRules(selected.rules_description)
+    setEventName(selected.name)
+    setSubmissionStart(toLocalDateTime(selected.submission_start_at))
+    setSubmissionEnd(toLocalDateTime(selected.submission_end_at))
+    setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
+    setMessage('')
+    setError('')
+  }, [events, selectedEventId])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!session || rules.length > maxRulesLength) return
+    if (!eventName.trim()) {
+      setError('開催回の名称を入力してください。')
+      return
+    }
+    if (characters.length !== 2 || characters.some((character) => !character.id) || characters[0].id === characters[1].id) {
+      setError('異なるキャラクターを2名選択してください。')
+      return
+    }
     if (
       submissionStart &&
       submissionEnd &&
@@ -50,25 +99,102 @@ export function SettingsPage() {
       setError('応募終了日時は応募開始日時より後に設定してください。')
       return
     }
+    if (Boolean(pageImageFiles.login) !== Boolean(pageImageFiles.entry)) {
+      setError('ページ画像はログインページ用と回答入力画面用の両方を選択してください。')
+      return
+    }
     setSubmitting(true)
     setMessage('')
     setError('')
-    const { error: updateError } = await supabase
-      .from('event_settings')
-      .update({
-        rules_description: rules,
-        submission_start_at: submissionStart
-          ? new Date(submissionStart).toISOString()
-          : null,
-        submission_end_at: submissionEnd
-          ? new Date(submissionEnd).toISOString()
-          : null,
-        updated_by: session.user.id,
-      })
-      .eq('id', true)
-    if (updateError) setError('設定の保存に失敗しました。')
-    else setMessage('設定を保存しました。')
+    const values = {
+      name: eventName.trim(),
+      rules_description: rules,
+      submission_start_at: submissionStart ? new Date(submissionStart).toISOString() : null,
+      submission_end_at: submissionEnd ? new Date(submissionEnd).toISOString() : null,
+      character_options: characters,
+      updated_by: session.user.id,
+    }
+    const creating = selectedEventId === newEventValue
+    let savedEventId = selectedEventId
+    if (creating) {
+      const { data, error: createError } = await supabase.from('event_editions').insert(values).select('id').single()
+      if (createError) {
+        setError('新しい開催回の作成に失敗しました。')
+        setSubmitting(false)
+        return
+      }
+      savedEventId = data.id
+    } else {
+      const { error: updateError } = await supabase.from('event_editions').update(values).eq('id', selectedEventId)
+      if (updateError) {
+        setError('設定の保存に失敗しました。')
+        setSubmitting(false)
+        return
+      }
+    }
+    if (pageImageFiles.login && pageImageFiles.entry) {
+      try {
+        await uploadPageImages(
+          savedEventId,
+          pageImageFiles,
+          Boolean(events.find((item) => item.id === savedEventId)?.is_active),
+        )
+      } catch {
+        await loadEvents(savedEventId)
+        setError('開催回の設定は保存しましたが、ページ画像をStorageへ保存できませんでした。')
+        setSubmitting(false)
+        return
+      }
+    }
+    await loadEvents(savedEventId)
+    setMessage(creating ? '新しい開催回を作成しました。' : '設定を保存しました。')
     setSubmitting(false)
+  }
+
+  const saveRules = async () => {
+    if (!session || rulesDraft.length > maxRulesLength) return
+    setRulesSubmitting(true)
+    setMessage('')
+    setError('')
+    if (selectedEventId === newEventValue) {
+      setRules(rulesDraft)
+      setRulesSubmitting(false)
+      setShowRulesModal(false)
+      return
+    }
+    const { error: updateError } = await supabase
+      .from('event_editions')
+      .update({ rules_description: rulesDraft, updated_by: session.user.id })
+      .eq('id', selectedEventId)
+    setRulesSubmitting(false)
+    if (updateError) {
+      setError('ルール説明の保存に失敗しました。')
+      return
+    }
+    setRules(rulesDraft)
+    setShowRulesModal(false)
+    setMessage('ルール説明を保存しました。')
+    await loadEvents(selectedEventId)
+  }
+
+  const activateEvent = async () => {
+    const selected = events.find((event) => event.id === selectedEventId)
+    if (!selected?.page_images_path) return setError('先にこの開催回のページ画像をStorageへ保存してください。')
+    if (import.meta.env.DEV) {
+      try {
+        await cacheLocalPageImagesFromStorage(selected.page_images_path)
+      } catch {
+        return setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+      }
+    }
+    const { error: activateError } = import.meta.env.DEV
+      ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
+      : await supabase.functions.invoke('activate-event', {
+          body: { eventId: selectedEventId },
+        })
+    if (activateError) return setError('回答受付対象を切り替えられませんでした。')
+    await loadEvents(selectedEventId)
+    setMessage('回答受付対象の開催回を切り替えました。')
   }
 
   return (
@@ -77,7 +203,7 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">ADMINISTRATION</p>
           <h1>設定</h1>
-          <p>イベントルールと応募受付期間を設定します。</p>
+          <p>イベントルール、対象キャラクター、応募受付期間を設定します。</p>
         </div>
       </div>
       {message && <div className="notice success">{message}</div>}
@@ -87,6 +213,27 @@ export function SettingsPage() {
           <div className="spinner" />
         ) : (
           <form onSubmit={submit}>
+            <fieldset className="settings-section">
+              <legend>開催回</legend>
+              <div className="form-grid">
+                <label>
+                  編集する開催回
+                  <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
+                    {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
+                    <option value={newEventValue}>新規開催</option>
+                  </select>
+                </label>
+                <label>
+                  開催回の名称
+                  <input value={eventName} maxLength={100} onChange={(event) => setEventName(event.target.value)} />
+                </label>
+              </div>
+              <div className="event-settings-actions">
+                <button type="button" className="button secondary small" disabled={selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
+                  この開催回を回答受付対象にする
+                </button>
+              </div>
+            </fieldset>
             <fieldset className="settings-section">
               <legend>応募期間</legend>
               <div className="form-grid">
@@ -112,21 +259,63 @@ export function SettingsPage() {
                 </label>
               </div>
             </fieldset>
-            <div className="settings-section">
-            <label htmlFor="rules-description">
-              ルール説明
-              <textarea
-                id="rules-description"
-                className="rules-textarea"
-                value={rules}
-                maxLength={maxRulesLength}
-                onChange={(event) => setRules(event.target.value)}
-                placeholder="イベントのルールを入力してください。改行もそのまま回答入力画面に反映されます。"
-              />
-            </label>
+            <PageImageSettings
+              isActive={Boolean(events.find((event) => event.id === selectedEventId)?.is_active)}
+              pageImagesPath={events.find((event) => event.id === selectedEventId)?.page_images_path ?? null}
+              files={pageImageFiles}
+              onFilesChange={setPageImageFiles}
+            />
+            <fieldset className="settings-section">
+              <legend>対象キャラクター</legend>
+              <div className="character-settings-list">
+                {characters.map((character, index) => (
+                  <Fragment key={index}>
+                    <div className="character-slot">
+                      <label htmlFor={`character-slot-${index}`}>
+                        キャラクター {index + 1}
+                        <select
+                          id={`character-slot-${index}`}
+                          value={character.id}
+                          onChange={(event) => {
+                            const selected = characterRoster.find((option) => option.id === event.target.value)
+                            setCharacters((current) => current.map((item, itemIndex) => itemIndex === index ? (selected ?? emptyCharacters()[0]) : item))
+                          }}
+                        >
+                          <option value="">未選択</option>
+                          {characterRoster
+                            .filter((option) => option.id === character.id || !characters.some((selected, selectedIndex) => selectedIndex !== index && selected.id === option.id))
+                            .map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    {index === 0 && (
+                      <button
+                        type="button"
+                        className="character-swap-button"
+                        aria-label="2つのキャラクターを入れ替える"
+                        title="入れ替える"
+                        onClick={() => setCharacters(([first, second]) => [second, first])}
+                      >
+                        ⇄
+                      </button>
+                    )}
+                  </Fragment>
+                ))}
+              </div>
+                <label>
+                <small>強化月間の2枠に割り当てるキャラクターを選択します。同じキャラクターは重複して選択できません。</small>
+                </label>
+            </fieldset>
+            <div className="settings-section rules-setting-row">
+              <div>
+                <strong>ルール説明</strong>
+                <small>回答入力画面に表示するイベントルールを編集します。</small>
+              </div>
+              <button type="button" className="button secondary" onClick={() => { setRulesDraft(rules); setRulesSourceEventId(''); setShowRulesModal(true) }}>
+                ルール説明変更
+              </button>
             </div>
             <div className="rules-editor-footer">
-              <span className="muted">{rules.length.toLocaleString()} / {maxRulesLength.toLocaleString()}文字</span>
               <button className="button primary" disabled={submitting}>
                 {submitting ? '保存中…' : '設定を保存'}
               </button>
@@ -134,6 +323,19 @@ export function SettingsPage() {
           </form>
         )}
       </section>
+      {showRulesModal && (
+        <RulesEditorModal
+          events={events}
+          selectedEventId={selectedEventId}
+          sourceEventId={rulesSourceEventId}
+          value={rulesDraft}
+          submitting={rulesSubmitting}
+          onSourceEventChange={setRulesSourceEventId}
+          onChange={setRulesDraft}
+          onSave={() => void saveRules()}
+          onClose={() => !rulesSubmitting && setShowRulesModal(false)}
+        />
+      )}
     </main>
   )
 }

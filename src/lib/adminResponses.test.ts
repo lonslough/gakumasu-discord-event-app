@@ -12,6 +12,7 @@ import {
 function submission(overrides: Partial<AdminSubmission> = {}): AdminSubmission {
   return {
     id: 'submission-1',
+    event_id: 'event-1',
     user_id: 'auth-user-1',
     discord_username: 'Discord User',
     producer_name: 'Producer',

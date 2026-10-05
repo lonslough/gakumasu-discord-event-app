@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [develop]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Expand active event page images
+        if: github.event_name != 'pull_request' && vars.PAGE_IMAGES_ENDPOINT != ''
+        env:
+          PAGE_IMAGES_ENDPOINT: ${{ vars.PAGE_IMAGES_ENDPOINT }}
+          PAGE_DEPLOY_SECRET: ${{ secrets.PAGE_DEPLOY_SECRET }}
+        run: |
+          PAGE_ARCHIVE_URL=$(curl --fail --silent --show-error \
+            --header "X-Deploy-Secret: $PAGE_DEPLOY_SECRET" \
+            "$PAGE_IMAGES_ENDPOINT" | jq -r '.signedUrl')
+          test -n "$PAGE_ARCHIVE_URL"
+          test "$PAGE_ARCHIVE_URL" != "null"
+          curl --fail --silent --show-error --location "$PAGE_ARCHIVE_URL" --output /tmp/page-images.zip
+          unzip -o /tmp/page-images.zip -d public
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,7 +44,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request'
         with:
           path: dist
