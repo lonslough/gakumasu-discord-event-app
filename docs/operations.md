@@ -31,6 +31,8 @@ docker compose exec backend supabase db reset
 
 `docker compose down --volumes` はCompose管理の依存パッケージ・ビルド成果物・接続情報のVolumeも削除します。Supabase CLIが別途管理するDBの初期化とは区別してください。ローカルseedの検証アカウントはadminが `test` / `test`、userが `user` / `user`（ID / パスワード）です。
 
+ローカルSeederは上記2アカウントに加え、一般ユーザーの6開催回分の回答と5件のレビューを作成します。確認済みの通常得点・0点・得点未登録、確認待ち、対象外、レビュー未作成を含み、最後のサンプル開催回を受付中にします。管理者本人の履歴は空です。画像ファイル・初心者部門の証明画像は生成しません。`supabase/seed.sql` は初回作成・ローカルDBリセット専用で、単独再実行には対応しません。
+
 ## 本番の初期セットアップ
 
 SupabaseプロジェクトとGitHubリポジトリを用意し、認証のEmailプロバイダーを使用します。接続URLと公開用キーは [.env.production.example](../.env.production.example) を参考に設定します。Service Role KeyはFunctionのサーバー側でのみ使用します。
