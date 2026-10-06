@@ -10,7 +10,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || 'production' }}
   cancel-in-progress: true
 jobs:
   build:
@@ -35,6 +35,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Test auto-merge safeguards
+        run: node --test .github/tests/auto-merge.test.cjs
       - run: npm run lint
       - run: npm run test
       - run: npm run build

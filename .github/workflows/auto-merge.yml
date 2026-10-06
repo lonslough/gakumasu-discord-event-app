@@ -2,21 +2,70 @@ name: Auto merge pull requests
 
 on:
   pull_request_target:
-    branches: [develop, main]
-    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [develop]
+    types: [ready_for_review]
+  workflow_run:
+    workflows: [Test and deploy, Validate and deploy Supabase]
+    types: [completed]
 
 permissions:
+  actions: read
   contents: write
   pull-requests: write
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
 jobs:
   auto-merge:
-    name: Enable auto-merge
-    if: github.event.pull_request.draft == false
+    name: Merge after successful validation
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
-      - name: Enable auto-merge
-        run: gh pr merge "$PR_URL" --auto --merge
+      # Never check out or execute PR code in this privileged workflow.
+      - name: Verify both workflows for the current PR commit and merge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const eventPr = context.payload.pull_request;
+            const completedRun = context.payload.workflow_run;
+            const candidates = eventPr ? [eventPr] : await github.paginate(
+              github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 }
+            );
+            for (const candidate of candidates) {
+              const { data: pr } = await github.rest.pulls.get({
+                ...repo, pull_number: candidate.number
+              });
+              if (pr.state !== 'open' || pr.draft ||
+                  pr.base.ref !== 'develop') continue;
+              if (completedRun && (pr.head.sha !== completedRun.head_sha ||
+                  pr.head.repo?.full_name !== completedRun.head_repository?.full_name)) continue;
+
+              let passed = true;
+              for (const workflow_id of ['deploy.yml', 'supabase-deploy.yml']) {
+                const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+                  ...repo, workflow_id, event: 'pull_request',
+                  head_sha: pr.head.sha, per_page: 100
+                });
+                // Use the newest run, including queued or in-progress reruns.
+                const latest = runs.filter(run =>
+                  run.head_repository?.full_name === pr.head.repo?.full_name &&
+                  run.pull_requests?.some(p => p.number === pr.number &&
+                    p.base.sha === pr.base.sha)
+                ).sort((a, b) => b.id - a.id)[0];
+                if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') {
+                  core.info(`PR #${pr.number}: waiting for ${workflow_id} to succeed.`);
+                  passed = false;
+                }
+              }
+              if (!passed) continue;
+              // The API rejects the merge if another commit was pushed meanwhile.
+              await github.rest.pulls.merge({
+                ...repo, pull_number: pr.number, sha: pr.head.sha, merge_method: 'merge'
+              });
+            }
