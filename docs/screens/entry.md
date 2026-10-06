@@ -4,7 +4,7 @@
 
 ## 目的・データ取得
 
-`/entry`、user/adminともログイン必須。get_event_settingsで受付対象の開催回・期間・ルール・2名のキャラクターを取得し、そのevent_idと本人user_idでsubmissionsをmaybeSingle取得します。タイトルは開催回名、ページ画像はentryImageです。自分の過去回を選択するUIはありません。
+`/entry`、user/adminともログイン必須。get_event_settingsで受付対象の開催回・期間・ルール・2名のキャラクターを取得し、そのevent_idと本人user_idでsubmissionsをmaybeSingle取得します。タイトルは開催回名、ページ画像はentryImageです。この画面に過去回を選択するUIはなく、共通Headerから[参加履歴](history.md)を開いて過去の参加情報・得点・提出画像を確認します。
 
 共通Headerにライト／ダークテーマの切替を表示します。端末連動と保存規則は[共通設計](../architecture.md)を参照します。
 

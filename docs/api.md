@@ -11,6 +11,7 @@ Supabase JS SDKを使用し、DB操作は認証セッションとRLS、Storage�
 | RPC | 入力 | 戻り値・用途 |
 | --- | --- | --- |
 | get_event_settings | なし | active開催回のevent_id、event_name、rules_description、開始/終了、character_options、server_now、accepting_submissions。該当行なしはnull |
+| list_my_submission_history | なし | 本人の参加済み全開催回の回答・開催回名/is_active/character_options・確認状態・確認済み得点のJSON配列。開催回作成日時/ID降順。0件は空配列 |
 | is_submission_period_open | なし / p_event_id UUID | activeかつ開始以上・終了以下。null日時は制限なし、対象なしはfalse。引数なしはactiveへ委譲 |
 | list_admin_submissions | p_event_id UUID（省略時active） | 回答・profile.user_id・reviewをJSON配列化、updated_at降順。非adminは空配列 |
 | list_user_summaries | なし | プロフィールとhas_submission / last_submitted_at。登録日時降順、結合後100行。非adminは空配列 |
@@ -19,6 +20,8 @@ Supabase JS SDKを使用し、DB操作は認証セッションとRLS、Storage�
 | is_admin | check_user UUID（既定auth.uid()） | 指定プロフィールがadminか。RLS/関数から使用 |
 
 管理一覧関数はエラーでなく空配列/0になる分岐があるため、UIガードとAPIの失敗条件は同一ではありません。set_active_eventはpage_images_pathを検査しません。画像の存在チェックは画面とactivate-event側です。
+
+list_my_submission_historyはauthenticatedのみ実行可能なsecurity definer関数（search_path空）で、auth.uid()に一致する回答だけを取得します。user_idを受け取る引数はありません。管理者も本人分のみ。レビューなしはpending、confirmed_scoreはverifiedのときのみ返します。admin_note・verified_by・verified_atは含めません。回答の画像パスは本人分のみ返し、実体の取得には既存Storage RLSを適用します。[追加SQL](../supabase/migrations/20261006000000_add_submission_history.sql)
 
 ## Edge Functions共通
 
