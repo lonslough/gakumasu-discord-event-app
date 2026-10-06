@@ -32,6 +32,9 @@ export function Header() {
         <NavLink to="/entry" onClick={() => setMenuOpen(false)}>
           回答入力
         </NavLink>
+        <NavLink to="/history" onClick={() => setMenuOpen(false)}>
+          参加履歴
+        </NavLink>
         {isAdmin && (
           <NavLink to="/admin/users" onClick={() => setMenuOpen(false)}>
             ユーザー登録

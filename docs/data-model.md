@@ -94,6 +94,8 @@ booleanのid=trueを主キーとする単一行。rules_description、updated_at
 
 anonから主要テーブルへの権限を取り消します。is_adminはprofiles.roleを確認するsecurity definer関数。管理RPCはadmin判定を内部で行います。service_roleへのprofiles SELECT/INSERT付与はユーザー作成用の追加migrationにあります。Storageの最終ポリシーは[画像設計](images.md)を参照。
 
+参加履歴の[追加RPC](../supabase/migrations/20261006000000_add_submission_history.sql)は本人の回答に限定して確認状態・確認済み得点を公開します。submission_reviewsのSELECTポリシーはadmin限定のまま維持し、一般ユーザーへ管理メモを公開しません。未確認・無効の得点はRPCでnullへ変換します。追加テーブルや過去データの書き換えはありません。
+
 ## 現行挙動の注意点
 
 - list_user_summariesは全開催回の回答をuser_idのみで結合するため複数行になり、結合後100行に制限されます。

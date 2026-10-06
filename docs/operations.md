@@ -107,6 +107,10 @@ Pagesの画像取得は共有secret→900秒署名URL→ZIPダウンロード→
 
 Vitest、jsdom、Testing Library。npm run testはvitest run、buildはtsc -b後vite build、lintはeslint。
 
+参加履歴はHistoryPage/HistoryImageのコンポーネントテストとRoutesの認証・遷移テストで検証します。DB権限テストは `supabase test db supabase/tests/submission_history.sql`。Supabase WorkflowでもDB lint後に実行します。ローカルDBでテスト専用データをトランザクション内に作成し、最後にrollbackするため既存の回答や開催回は残ります。
+
+Compose内のSupabase CLIからテスト用コンテナを起動すると、Dockerホストに `/workspace` が存在せずテストSQLをマウントできない場合があります。その場合は同SQLをローカルDBコンテナのpsqlへ標準入力で渡し、ON_ERROR_STOPを有効化して実行し、TAP結果が全件okであることを確認します。
+
 既存テストはID/内部メール・画像/応募フォーム検証、パスワード生成、ランキング、検索/絞込/集計/CSV、回答保存順序/失敗時回収/期間タイマー、ページ画像プレビュー、canvas調整を対象とします。Supabaseモックやcanvasモックを用いるテストを含み、実DB RLSやブラウザーE2Eの成功を保証するものではありません。今回の設計書作成ではソース照合を実施し、テスト実行済みとは扱いません。
 
 ## 実装根拠

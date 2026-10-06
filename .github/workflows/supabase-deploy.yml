@@ -36,6 +36,9 @@ jobs:
       - name: Lint local database
         run: supabase db lint --local --level warning --fail-on warning
 
+      - name: Test participation history access
+        run: supabase test db supabase/tests/submission_history.sql
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.4.5

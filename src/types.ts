@@ -68,6 +68,14 @@ export interface Review {
   updated_at: string
 }
 
+export interface SubmissionHistory extends Omit<Submission, 'user_id'> {
+  event_name: string
+  is_active: boolean
+  character_options: CharacterOption[]
+  verification_status: VerificationStatus
+  confirmed_score: number | null
+}
+
 export interface AdminSubmission extends Submission {
   profile: Pick<Profile, 'user_id'>
   review: Review | null
