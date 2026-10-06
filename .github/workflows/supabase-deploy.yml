@@ -3,10 +3,6 @@ name: Validate and deploy Supabase
 on:
   pull_request:
     branches: [develop]
-    paths:
-      - "supabase/**"
-      - "deno.lock"
-      - ".github/workflows/supabase-deploy.yml"
   push:
     branches: [main]
     paths:
@@ -19,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: supabase-production
+  group: supabase-${{ github.event.pull_request.number || 'production' }}
   cancel-in-progress: false
 
 jobs:
