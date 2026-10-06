@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export function HistoryImage({ path, label }: { path: string | null; label: string }) {
-  const [open, setOpen] = useState(false)
+export function HistoryImage({ path, label, initiallyOpen = false }: { path: string | null; label: string; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen)
   const [attempt, setAttempt] = useState(0)
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')
@@ -34,8 +34,7 @@ export function HistoryImage({ path, label }: { path: string | null; label: stri
 
   return (
     <div className="history-image">
-      <h4>{label}</h4>
-      {!path && <p className="muted">未提出</p>}
+      {!path && <p className="muted">{label}：<span>未提出</span></p>}
       {path && (
         <button type="button" className="button secondary small"
           aria-expanded={open} onClick={() => setOpen(value => !value)}>

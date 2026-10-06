@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HistoryPage } from './HistoryPage'
 import type { SubmissionHistory } from '../types'
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }))
-vi.mock('../lib/supabase', () => ({ supabase: { rpc: mocks.rpc } }))
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), download: vi.fn() }))
+vi.mock('../lib/supabase', () => ({ supabase: { rpc: mocks.rpc,
+  storage: { from: () => ({ download: mocks.download }) } } }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ session: { user: { id: 'self' } } }) }))
 
 const row = (overrides: Partial<SubmissionHistory> = {}): SubmissionHistory => ({
@@ -20,15 +21,20 @@ const row = (overrides: Partial<SubmissionHistory> = {}): SubmissionHistory => (
 const show = () => render(<MemoryRouter><HistoryPage /></MemoryRouter>)
 
 describe('参加履歴', () => {
-  afterEach(cleanup)
-  beforeEach(() => mocks.rpc.mockReset())
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+  beforeEach(() => {
+    mocks.rpc.mockReset()
+    mocks.download.mockReset().mockResolvedValue({ data: new Blob(['image']), error: null })
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:history'), revokeObjectURL: vi.fn() })
+  })
 
   it('現在回と過去回の参加情報をAPI順に表示し編集操作を出さない', async () => {
     mocks.rpc.mockResolvedValue({ data: [row({ id: 'new', event_name: '第2回', is_active: true }), row()], error: null })
     show()
     expect(screen.getByRole('status')).toHaveTextContent('読み込み中')
-    const cards = await screen.findAllByRole('article')
-    expect(cards.map(card => within(card).getByRole('heading', { level: 2 }).textContent)).toEqual(['第2回', '第1回'])
+    const table = await screen.findByRole('table', { name: '参加履歴' })
+    const cards = within(table).getAllByRole('row').slice(1)
+    expect(cards.map(card => within(card).getByRole('button').textContent)).toEqual(['第2回', '第1回'])
     expect(within(cards[0]).getByText('現在の開催回')).toBeInTheDocument()
     expect(within(cards[1]).getByText('12,345')).toBeInTheDocument()
     expect(within(cards[1]).getByText('十王 星南')).toBeInTheDocument()
@@ -61,18 +67,30 @@ describe('参加履歴', () => {
     show()
     expect(await screen.findByRole('alert')).toHaveTextContent('参加履歴を読み込めませんでした')
     fireEvent.click(screen.getByRole('button', { name: '再試行' }))
-    expect(await screen.findByRole('article')).toBeInTheDocument()
+    expect(await screen.findByRole('table')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 
-  it('旧形式画像と初心者証明は個別の表示操作を用意', async () => {
+  it('行をクリックすると旧形式画像と初心者証明を表示し、閉じるとURLを解放', async () => {
     mocks.rpc.mockResolvedValue({ data: [row({ entry_division: 'beginner', score_image_path: 'self/score/a',
       deck_image_path: 'self/deck/b', beginner_proof_image_path: 'self/beginner-proof/c',
       login_days_proof_image_path: 'self/login-days-proof/d' })], error: null })
     show()
-    expect(await screen.findByRole('button', { name: '評価値（旧形式）を表示' })).toBeInTheDocument()
+    const record = await screen.findByRole('button', { name: '第1回の提出画像を表示' })
+    expect(mocks.download).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(record.closest('tr')!)
+    expect(await screen.findAllByRole('img')).toHaveLength(4)
+    expect(screen.getByRole('button', { name: '評価値（旧形式）を閉じる' })).toBeInTheDocument()
     for (const label of ['デッキ（旧形式）', 'PID・Pレベル', '総出席日数']) {
-      expect(screen.getByRole('button', { name: `${label}を表示` })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: `${label}を閉じる` })).toBeInTheDocument()
     }
+    fireEvent.click(screen.getByRole('button', { name: '閉じる' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(4)
+    fireEvent.click(record)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

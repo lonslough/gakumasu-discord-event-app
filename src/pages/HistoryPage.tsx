@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { HistoryImage } from '../components/history/HistoryImage'
+import { Modal } from '../components/Modal'
 import { entryDivisionName, statusName } from '../components/responses/labels'
 import { characterLabel, characterRoster } from '../lib/characters'
 import { supabase } from '../lib/supabase'
@@ -9,41 +10,43 @@ import type { SubmissionHistory } from '../types'
 
 const dateLabel = (value: string) => new Date(value).toLocaleString('ja-JP')
 
-function HistoryCard({ row }: { row: SubmissionHistory }) {
+function HistoryRow({ row, onSelect }: { row: SubmissionHistory; onSelect: () => void }) {
   let scoreLabel = '確認待ち'
   if (row.verification_status === 'invalid') scoreLabel = '対象外'
   if (row.verification_status === 'verified') {
     scoreLabel = row.confirmed_score === null ? '得点未登録' : row.confirmed_score.toLocaleString('ja-JP')
   }
   return (
-    <article className="card history-card" aria-labelledby={`history-${row.id}`}>
-      <div className="history-card-heading">
-        <div>
-          {row.is_active && <span className="history-current">現在の開催回</span>}
-          <h2 id={`history-${row.id}`}>{row.event_name}</h2>
-        </div>
-        <span className={`badge ${row.verification_status}`}>{statusName[row.verification_status]}</span>
-      </div>
-      <div className="history-score"><span>確認済み得点</span><strong>{scoreLabel}</strong></div>
-      <dl className="history-details">
-        <div><dt>サーバー内ユーザーネーム</dt><dd>{row.discord_username}</dd></div>
-        <div><dt>ゲーム内プロデューサーネーム</dt><dd>{row.producer_name}</dd></div>
-        <div><dt>育成キャラクター</dt><dd>{characterLabel([...row.character_options, ...characterRoster], row.category)}</dd></div>
-        <div><dt>応募部門</dt><dd>{entryDivisionName[row.entry_division]}</dd></div>
-        <div><dt>初回提出日時</dt><dd>{dateLabel(row.created_at)}</dd></div>
-        <div><dt>最終更新日時</dt><dd>{dateLabel(row.updated_at)}</dd></div>
-      </dl>
-      <h3>提出画像</h3>
+    <tr className="history-row" onClick={onSelect}>
+      <th scope="row">
+        <button type="button" className="history-record-button" aria-haspopup="dialog"
+          aria-label={`${row.event_name}の提出画像を表示`}
+          onClick={event => { event.stopPropagation(); onSelect() }}>{row.event_name}</button>
+        {row.is_active && <span className="history-current">現在の開催回</span>}
+      </th>
+      <td><span className={`badge ${row.verification_status}`}>{statusName[row.verification_status]}</span></td>
+      <td className="history-score-cell">{scoreLabel}</td>
+      <td>{row.discord_username}</td>
+      <td>{row.producer_name}</td>
+      <td>{characterLabel([...row.character_options, ...characterRoster], row.category)}</td>
+      <td>{entryDivisionName[row.entry_division]}</td>
+      <td>{dateLabel(row.created_at)}</td>
+      <td>{dateLabel(row.updated_at)}</td>
+    </tr>
+  )
+}
+
+function HistoryImages({ row }: { row: SubmissionHistory }) {
+  return (
       <div className="history-images">
-        <HistoryImage path={row.score_image_path}
+        <HistoryImage initiallyOpen path={row.score_image_path}
           label={row.deck_image_path ? '評価値（旧形式）' : '評価値・最終所持スキルカード'} />
-        {row.deck_image_path && <HistoryImage path={row.deck_image_path} label="デッキ（旧形式）" />}
+        {row.deck_image_path && <HistoryImage initiallyOpen path={row.deck_image_path} label="デッキ（旧形式）" />}
         {(row.entry_division === 'beginner' || row.beginner_proof_image_path) &&
-          <HistoryImage path={row.beginner_proof_image_path} label="PID・Pレベル" />}
+          <HistoryImage initiallyOpen path={row.beginner_proof_image_path} label="PID・Pレベル" />}
         {(row.entry_division === 'beginner' || row.login_days_proof_image_path) &&
-          <HistoryImage path={row.login_days_proof_image_path} label="総出席日数" />}
+          <HistoryImage initiallyOpen path={row.login_days_proof_image_path} label="総出席日数" />}
       </div>
-    </article>
   )
 }
 
@@ -54,12 +57,15 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedRow = rows.find(row => row.id === selectedId)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError('')
     setRows([])
+    setSelectedId(null)
     if (!userId) return
     void (async () => {
       try {
@@ -76,11 +82,10 @@ export function HistoryPage() {
   }, [userId, attempt])
 
   return (
-    <main className="page narrow">
+    <main className="page history-page">
       <div className="page-title"><div><p className="eyebrow">MY HISTORY</p>
-        <h1>参加履歴</h1><p>これまでの参加情報・得点・提出画像を確認できます。</p>
+        <h1>参加履歴</h1>
       </div></div>
-      <p className="muted">得点は管理者の確認後に表示されます。この画面では回答を編集できません。</p>
       {loading && <p role="status">参加履歴を読み込み中…</p>}
       {!loading && error && <div className="notice error" role="alert">
         <p>{error}</p><button type="button" className="button secondary"
@@ -90,9 +95,20 @@ export function HistoryPage() {
         <h2>参加履歴はまだありません</h2><p>回答を送信すると、ここに参加情報が表示されます。</p>
         <Link className="button secondary" to="/entry">回答入力へ</Link>
       </div>}
-      {!loading && !error && rows.length > 0 && <div className="history-list">
-        {rows.map(row => <HistoryCard key={row.id} row={row} />)}
+      {!loading && !error && rows.length > 0 && <div className="history-table-scroll"
+        role="region" aria-label="参加履歴一覧" tabIndex={0}>
+        <table className="history-table" aria-label="参加履歴">
+          <thead><tr>
+            {['開催回', '確認状態', '確認済み得点', 'サーバー内ユーザーネーム',
+              'ゲーム内プロデューサーネーム', '育成キャラクター', '応募部門', '初回提出日時', '最終更新日時']
+              .map(label => <th key={label} scope="col">{label}</th>)}
+          </tr></thead>
+          <tbody>{rows.map(row => <HistoryRow key={row.id} row={row} onSelect={() => setSelectedId(row.id)} />)}</tbody>
+        </table>
       </div>}
+      {selectedRow && <Modal title={`${selectedRow.event_name}の提出画像`} wide onClose={() => setSelectedId(null)}>
+        <HistoryImages key={selectedRow.id} row={selectedRow} />
+      </Modal>}
     </main>
   )
 }
