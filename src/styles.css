@@ -73,13 +73,11 @@ a {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
+  display: block;
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--primary), var(--cyan));
-  border-radius: 11px;
-  color: #111527;
+  object-fit: contain;
 }
 
 .app-header nav {
