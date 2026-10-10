@@ -95,7 +95,7 @@ FunctionとActions Secretに同一のPAGE_DEPLOY_SECRETを設定し、Actions Va
 
 | Workflow | 起動条件 | 処理 |
 | --- | --- | --- |
-| deploy.yml | main push、develop向けPR、手動 | 非PRかつPAGE_IMAGES_ENDPOINT設定ありならactive画像ZIPを取得してpublicへ展開。Node22、npm ci、lint/test/build。非PRだけPages配信 |
+| deploy.yml | main push、develop向けPR、手動 | 非PRかつPAGE_IMAGES_ENDPOINT設定ありならactive画像ZIPを取得してpublicへ展開。Node22、本番とmock/sourceのnpm ci、mock再ビルド、lint/test/build（dist/mockへ実行ファイルを同梱）。非PRだけPages配信 |
 | supabase-deploy.yml | develop向け全PR、main pushの対象ファイル変更、手動 | DB起動、migration適用、DB lint、Deno2.4.5で4Function型検査。非PRだけproductionへDB push後Function一括deploy |
 | auto-merge.yml | 両検証Workflowの完了、develop向けPRのready_for_review | develop向け非ドラフトPRについて、最新コミット・現在のbaseに対応する両Workflowの最新実行が成功した場合だけマージ |
 
@@ -118,3 +118,9 @@ Compose内のSupabase CLIからテスト用コンテナを起動すると、Dock
 ## 実装根拠
 
 [package.json](../package.json)、[compose.yaml](../compose.yaml)、[Dockerfile](../Dockerfile)、[Dockerfile.supabase](../Dockerfile.supabase)、[config.toml](../supabase/config.toml)、[seed.sql](../supabase/seed.sql)、[vite.config.ts](../vite.config.ts)、[Pages Workflow](../.github/workflows/deploy.yml)、[Supabase Workflow](../.github/workflows/supabase-deploy.yml)、[自動マージ](../.github/workflows/auto-merge.yml)、[テスト初期化](../src/test/setup.ts)。
+
+## MockのPages配信
+
+`npm run build` は本番アプリのビルド後に [package-mock.mjs](../scripts/package-mock.mjs) を実行し、mock/index.html・app.js・app.css・images/・sample/だけをdist/mock/へコピーします。mock/source、node_modules、READMEや設計書はコピーしません。Workflowではmock/sourceの依存をロックファイルで導入して `npm run build:mock` を先に実行します。
+
+公開後は既存Pagesルートの末尾へ `/mock` を直接入力します。本番UIへリンク・メニュー・ボタンは追加しません。ディレクトリーのindex.htmlが入口、mock内はハッシュルーティングです。mockの認証・データ処理はメモリー内のままで、本番Supabaseへ接続しません。

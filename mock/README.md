@@ -7,6 +7,18 @@
 
 このフォルダーの index.html をブラウザーで開いてください。Node.js・バックエンド・環境変数は起動に不要です。app.js、app.css、images/、sample/ は一緒に配置します。静的HTTPサーバーでも動作します。
 
+## GitHub Pages
+
+公開後はアプリのルートURLの後ろに `/mock` を直接入力します。
+
+```text
+https://lonslough.github.io/gakumasu-discord-event-app/mock
+```
+
+本番画面のリンク・ボタン・メニューにはmockへの導線を設けません。Pagesで `/mock/` へ正規化された後、mock内はハッシュで画面遷移します。再読み込みで状態が初期化される動作は同じです。
+
+通常の `npm run build` はmockの実行ファイルを `dist/mock/` へ同梱します。Pages Workflowはmockを再ビルドしてから、本番アプリと一緒に配信します。`source/`・依存パッケージ・設計書は公開しません。
+
 ## ログイン
 
 プルダウンで user1〜user5（一般ユーザー）または admin（管理者）を選択します。パスワード欄は無効で、入力・認証検証はありません。管理者画面で追加したユーザーも、このタブ内では選択できます。発行画面のパスワードは表示用の固定値です。

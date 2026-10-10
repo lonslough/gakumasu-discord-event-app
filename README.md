@@ -75,3 +75,5 @@ docker compose run --rm --no-deps web npm run build
 ## フロントエンドmock
 
 永続化・バックエンド通信なしの画面確認用mockは [mock/README.md](mock/README.md) を参照してください。mock/index.htmlを開き、user1〜user5またはadminを選択してログインできます。
+
+GitHub PagesではアプリのルートURLの後ろに `/mock` を直接入力して開きます。本番画面にはmockへのリンク・ボタン・メニューを表示しません。Pagesのデプロイ成果物にmockを同梱します。

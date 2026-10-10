@@ -69,3 +69,7 @@ styles.cssに日本語フォント、ライト／ダーク配色、共通カー�
 ## 実装根拠
 
 [main.tsx](../src/main.tsx)、[Routes.tsx](../src/components/Routes.tsx)、[AuthContext.tsx](../src/contexts/AuthContext.tsx)、[supabase.ts](../src/lib/supabase.ts)、[Header.tsx](../src/components/Header.tsx)、[ThemeToggle.tsx](../src/components/ThemeToggle.tsx)、[theme.ts](../src/lib/theme.ts)、[Modal.tsx](../src/components/Modal.tsx)、[types.ts](../src/types.ts)、[styles.css](../src/styles.css)、[index.html](../index.html)、[404.html](../public/404.html)。
+
+## Mockの独立した入口
+
+[フロントエンドmock](../mock/README.md) はPagesルート配下の `/mock` を直接入力して開く独立した静的画面です。本番のHeader・ログイン・その他画面にmockへのリンク・ボタン・メニューは表示しません。本番のルーティングへmockを登録せず、`dist/mock/index.html` を入口にします。内部の画面遷移はハッシュを使用し、認証・データ・画像・テーマをメモリー内だけで扱います。ビルドと配信の詳細は[運用設計](operations.md)を参照してください。

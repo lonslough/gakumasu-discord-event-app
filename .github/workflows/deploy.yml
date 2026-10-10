@@ -34,7 +34,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mock/source/package-lock.json
       - run: npm ci
+      - name: Install mock build dependencies
+        run: npm ci --prefix mock/source
+      - name: Build frontend mock
+        run: npm run build:mock
       - name: Test auto-merge safeguards
         run: node --test .github/tests/auto-merge.test.cjs
       - run: npm run lint
