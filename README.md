@@ -71,3 +71,7 @@ docker compose run --rm --no-deps web npm run build
 - [設計書の照合記録](docs/verification.md)：実装との照合結果と確認範囲
 
 現行実装を基準に設計書を保守します。`PROMPT.md`・`PROMPT2.md`は過去の要件資料です。
+
+## フロントエンドmock
+
+永続化・バックエンド通信なしの画面確認用mockは [mock/README.md](mock/README.md) を参照してください。mock/index.htmlを開き、user1〜user5またはadminを選択してログインできます。
