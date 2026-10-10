@@ -31,6 +31,8 @@ docker compose exec backend supabase db reset
 
 `docker compose down --volumes` はCompose管理の依存パッケージ・ビルド成果物・接続情報のVolumeも削除します。Supabase CLIが別途管理するDBの初期化とは区別してください。ローカルseedの検証アカウントはadminが `test` / `test`、userが `user` / `user`（ID / パスワード）です。
 
+ローカルSeederは上記2アカウントに加え、一般ユーザーの6開催回分の回答と5件のレビューを作成します。確認済みの通常得点・0点・得点未登録、確認待ち、対象外、レビュー未作成を含み、最後のサンプル開催回を受付中にします。管理者本人の履歴は空です。画像ファイル・初心者部門の証明画像は生成しません。`supabase/seed.sql` は初回作成・ローカルDBリセット専用で、単独再実行には対応しません。
+
 ## 本番の初期セットアップ
 
 SupabaseプロジェクトとGitHubリポジトリを用意し、認証のEmailプロバイダーを使用します。接続URLと公開用キーは [.env.production.example](../.env.production.example) を参考に設定します。Service Role KeyはFunctionのサーバー側でのみ使用します。
@@ -106,6 +108,10 @@ Pagesの画像取得は共有secret→900秒署名URL→ZIPダウンロード→
 ## テストの実装範囲
 
 Vitest、jsdom、Testing Library。npm run testはvitest run、buildはtsc -b後vite build、lintはeslint。
+
+参加履歴はHistoryPage/HistoryImageのコンポーネントテストとRoutesの認証・遷移テストで検証します。DB権限テストは `supabase test db supabase/tests/submission_history.sql`。Supabase WorkflowでもDB lint後に実行します。ローカルDBでテスト専用データをトランザクション内に作成し、最後にrollbackするため既存の回答や開催回は残ります。
+
+Compose内のSupabase CLIからテスト用コンテナを起動すると、Dockerホストに `/workspace` が存在せずテストSQLをマウントできない場合があります。その場合は同SQLをローカルDBコンテナのpsqlへ標準入力で渡し、ON_ERROR_STOPを有効化して実行し、TAP結果が全件okであることを確認します。
 
 既存テストはID/内部メール・画像/応募フォーム検証、パスワード生成、ランキング、検索/絞込/集計/CSV、回答保存順序/失敗時回収/期間タイマー、ページ画像プレビュー、canvas調整を対象とします。Supabaseモックやcanvasモックを用いるテストを含み、実DB RLSやブラウザーE2Eの成功を保証するものではありません。今回の設計書作成ではソース照合を実施し、テスト実行済みとは扱いません。
 

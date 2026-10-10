@@ -20,8 +20,14 @@ export function Header() {
 
   return (
     <header className={`app-header ${isAdmin ? 'admin-header' : ''}`}>
-      <NavLink to="/entry" className="brand">
-        <span className="brand-mark">S</span>
+      <NavLink to="/entry" className="brand" aria-label="強化月間エントリー">
+        <img
+          className="brand-mark"
+          src={`${import.meta.env.BASE_URL}images/brand-logo.png`}
+          alt=""
+          width={36}
+          height={36}
+        />
         <span>強化月間エントリー</span>
       </NavLink>
       <nav
@@ -31,6 +37,9 @@ export function Header() {
       >
         <NavLink to="/entry" onClick={() => setMenuOpen(false)}>
           回答入力
+        </NavLink>
+        <NavLink to="/history" onClick={() => setMenuOpen(false)}>
+          参加履歴
         </NavLink>
         {isAdmin && (
           <NavLink to="/admin/users" onClick={() => setMenuOpen(false)}>

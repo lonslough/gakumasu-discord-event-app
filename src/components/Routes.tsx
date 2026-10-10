@@ -5,6 +5,7 @@ import { Header } from './Header'
 
 const LoginPage = lazy(() => import('../pages/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })))
 const EntryPage = lazy(() => import('../pages/EntryPage').then(({ EntryPage }) => ({ default: EntryPage })))
+const HistoryPage = lazy(() => import('../pages/HistoryPage').then(({ HistoryPage }) => ({ default: HistoryPage })))
 const UsersPage = lazy(() => import('../pages/UsersPage').then(({ UsersPage }) => ({ default: UsersPage })))
 const ResponsesPage = lazy(() => import('../pages/ResponsesPage').then(({ ResponsesPage }) => ({ default: ResponsesPage })))
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then(({ SettingsPage }) => ({ default: SettingsPage })))
@@ -46,6 +47,7 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<Protected />}>
           <Route path="/entry" element={<EntryPage />} />
+          <Route path="/history" element={<HistoryPage />} />
           <Route element={<AdminOnly />}>
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/responses" element={<ResponsesPage />} />

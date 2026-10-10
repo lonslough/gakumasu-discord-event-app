@@ -15,6 +15,7 @@ docs/
   screens/
     login.md
     entry.md
+    history.md
     admin-users.md
     admin-responses.md
     admin-settings.md
@@ -36,6 +37,7 @@ docs/
 | --- | --- | --- |
 | `/login` | 未ログイン。ログイン済みは回答入力へ | [ログイン](screens/login.md) |
 | `/entry` | ログインユーザー（管理者も可） | [回答入力](screens/entry.md) |
+| `/history` | ログインユーザー（管理者も本人分のみ） | [参加履歴](screens/history.md) |
 | `/admin/users` | 管理者 | [ユーザー登録](screens/admin-users.md) |
 | `/admin/responses` | 管理者 | [回答結果](screens/admin-responses.md) |
 | `/admin/settings` | 管理者 | [設定](screens/admin-settings.md) |
