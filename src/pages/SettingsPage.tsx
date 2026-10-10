@@ -65,8 +65,6 @@ export function SettingsPage() {
       setSubmissionStart('')
       setSubmissionEnd('')
       setCharacters(emptyCharacters())
-      setMessage('')
-      setError('')
       return
     }
     const selected = events.find((event) => event.id === selectedEventId)
@@ -76,8 +74,6 @@ export function SettingsPage() {
     setSubmissionStart(toLocalDateTime(selected.submission_start_at))
     setSubmissionEnd(toLocalDateTime(selected.submission_end_at))
     setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
-    setMessage('')
-    setError('')
   }, [events, selectedEventId])
 
   const submit = async (event: FormEvent) => {
@@ -99,7 +95,8 @@ export function SettingsPage() {
       setError('応募終了日時は応募開始日時より後に設定してください。')
       return
     }
-    if (Boolean(pageImageFiles.login) !== Boolean(pageImageFiles.entry)) {
+    const savedImagesPath = events.find((item) => item.id === selectedEventId)?.page_images_path ?? null
+    if (!savedImagesPath && Boolean(pageImageFiles.login) !== Boolean(pageImageFiles.entry)) {
       setError('ページ画像はログインページ用と回答入力画面用の両方を選択してください。')
       return
     }
@@ -132,12 +129,13 @@ export function SettingsPage() {
         return
       }
     }
-    if (pageImageFiles.login && pageImageFiles.entry) {
+    if (pageImageFiles.login || pageImageFiles.entry) {
       try {
         await uploadPageImages(
           savedEventId,
           pageImageFiles,
           Boolean(events.find((item) => item.id === savedEventId)?.is_active),
+          savedImagesPath,
         )
       } catch {
         await loadEvents(savedEventId)
@@ -218,7 +216,7 @@ export function SettingsPage() {
               <div className="form-grid">
                 <label>
                   編集する開催回
-                  <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
+                  <select value={selectedEventId} onChange={(event) => { setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
                     <option value={newEventValue}>新規開催</option>
                   </select>
@@ -260,6 +258,7 @@ export function SettingsPage() {
               </div>
             </fieldset>
             <PageImageSettings
+              key={`${selectedEventId}:${events.find((item) => item.id === selectedEventId)?.updated_at ?? ''}`}
               isActive={Boolean(events.find((event) => event.id === selectedEventId)?.is_active)}
               pageImagesPath={events.find((event) => event.id === selectedEventId)?.page_images_path ?? null}
               files={pageImageFiles}
