@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Modal } from '../Modal'
+import { PageImageGuide } from './PageImageGuide'
 
 interface Props {
   file: File
   title: string
   aspectRatio: number | null
+  previewTarget?: 'login' | 'entry'
   onCancel: () => void
   onConfirm: (file: File) => void
 }
 
 const outputWidth = 1600
 
-export function ImageCropModal({ file, title, aspectRatio, onCancel, onConfirm }: Props) {
+export function ImageCropModal({ file, title, aspectRatio, previewTarget, onCancel, onConfirm }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const image = useRef<HTMLImageElement | null>(null)
   const drag = useRef<{ x: number; y: number } | null>(null)
+  const [previewSource, setPreviewSource] = useState('')
+  const [imageError, setImageError] = useState('')
   const [zoom, setZoom] = useState(1)
   const [positionX, setPositionX] = useState(0)
   const [positionY, setPositionY] = useState(0)
@@ -38,12 +42,17 @@ export function ImageCropModal({ file, title, aspectRatio, onCancel, onConfirm }
     context.fillStyle = '#15182d'
     context.fillRect(0, 0, target.width, target.height)
     context.drawImage(source, x, y, width, height)
-  }, [positionX, positionY, zoom])
+    if (previewTarget) setPreviewSource(target.toDataURL('image/jpeg', 0.75))
+  }, [positionX, positionY, zoom, previewTarget])
 
   useEffect(() => {
     const url = URL.createObjectURL(file)
+    let cancelled = false
+    setReady(false)
+    setImageError('')
     const nextImage = new Image()
     nextImage.onload = () => {
+      if (cancelled) return
       image.current = nextImage
       setCanvasHeight(Math.round(
         aspectRatio
@@ -52,8 +61,11 @@ export function ImageCropModal({ file, title, aspectRatio, onCancel, onConfirm }
       ))
       setReady(true)
     }
+    nextImage.onerror = () => {
+      if (!cancelled) setImageError('画像を読み込めませんでした。キャンセルして別の画像を選択してください。')
+    }
     nextImage.src = url
-    return () => URL.revokeObjectURL(url)
+    return () => { cancelled = true; URL.revokeObjectURL(url) }
   }, [aspectRatio, file])
 
   useEffect(() => draw(), [canvasHeight, draw, ready])
@@ -92,6 +104,10 @@ export function ImageCropModal({ file, title, aspectRatio, onCancel, onConfirm }
       </>}
     >
       <p className="muted">画像をドラッグして表示位置を調整できます。</p>
+      {imageError && <p className="notice error" role="alert">{imageError}</p>}
+      <div className={`image-crop-workspace ${previewTarget ? 'with-guide' : ''}`}>
+      <section className="image-crop-original" aria-label="保存する画像の調整">
+        {previewTarget && <h3>保存する画像</h3>}
       <canvas
         ref={canvas}
         className="image-crop-canvas"
@@ -105,6 +121,9 @@ export function ImageCropModal({ file, title, aspectRatio, onCancel, onConfirm }
         onPointerUp={() => { drag.current = null }}
         onPointerCancel={() => { drag.current = null }}
       />
+      </section>
+      {previewTarget && (previewSource ? <PageImageGuide target={previewTarget} source={previewSource} /> : <p className="muted" role="status">プレビューを準備しています…</p>)}
+      </div>
       <div className="image-crop-controls">
         <label>拡大率
           <input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />

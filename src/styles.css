@@ -1775,3 +1775,162 @@ html[data-theme='light'] .spinner {
 .image-crop-controls input[type='range'] {
   width: 100%;
 }
+
+/* Title images and viewport-contained login, approved login layout. */
+.login-page {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+html .login-page .login-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.login-page .login-hero-image {
+  position: relative;
+  display: block;
+  width: auto;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  object-fit: fill;
+  object-position: left top;
+}
+
+.login-page .login-form-wrap {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 64px clamp(20px, 3vw, 42px) 24px;
+  background: transparent;
+}
+
+.login-page .login-right-content {
+  flex: 0 0 auto;
+  width: min(460px, 100%);
+  margin-block: auto;
+}
+
+.login-page .login-theme-toggle {
+  z-index: 3;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--login-form-top, 0px) minmax(0, 1fr);
+  }
+
+  .login-page .login-hero-image {
+    width: 100%;
+    height: auto;
+  }
+
+  .login-page .login-form-wrap {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 64px 24px 20px;
+  }
+
+  .login-page .login-copy {
+    margin-bottom: 16px;
+  }
+
+  .login-page .login-copy h1 {
+    font-size: 36px;
+    margin: 12px 0;
+  }
+
+  .login-page .login-card {
+    padding: 24px;
+  }
+
+  .login-page .login-card label {
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 620px) {
+  .login-page .login-form-wrap {
+    padding-inline: 18px;
+    padding-bottom: 18px;
+  }
+
+  .login-page .login-copy h1 {
+    font-size: 32px;
+  }
+
+  .login-page .login-card {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 820px) {
+  .login-page .login-copy {
+    margin-bottom: 16px;
+  }
+
+  .login-page .login-copy h1 {
+    font-size: clamp(32px, 6vh, 48px);
+    margin: 12px 0;
+  }
+
+  .login-page .login-card {
+    padding: 24px;
+  }
+
+  .login-page .login-card label {
+    margin-top: 14px;
+  }
+}
+
+/* Image adjustment guides, image adjustment previews. */
+.image-crop-workspace.with-guide { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
+.image-crop-original, .page-image-guide { min-width: 0; }
+.image-crop-original h3, .page-image-guide h3 { margin: 0 0 12px; font-size: 16px; }
+.image-crop-original .image-crop-canvas { margin-inline: auto; }
+.page-image-guide-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.page-image-guide-heading h3 { margin: 0; }
+.page-image-guide-devices { display: flex; gap: 6px; }
+.page-image-guide-devices button[aria-pressed='true'] { border-color: var(--cyan); outline: 1px solid var(--cyan); }
+.page-image-guide-host { width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.page-image-guide-scaled { position: relative; margin-inline: auto; }
+.page-image-guide iframe { display: block; position: absolute; top: 0; left: 0; max-width: none; transform-origin: top left; border: 0; }
+#guide-root .app-header nav { display: flex; gap: 24px; }
+#guide-root .brand { font-weight: 800; }
+#guide-root input:disabled, #guide-root button:disabled { opacity: 1; cursor: default; }
+@media (max-width: 900px) {
+  .image-crop-workspace.with-guide { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
+@media (max-width: 620px) {
+  .image-crop-controls { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+
+.modal-wide:has(.image-crop-workspace.with-guide) { width: min(1240px, 100%); }

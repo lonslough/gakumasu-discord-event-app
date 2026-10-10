@@ -18,10 +18,15 @@ export interface PageImageFiles {
   entry: File | null
 }
 
-export async function uploadPageImages(eventId: string, files: PageImageFiles, isActive: boolean) {
-  if (!files.login || !files.entry) throw new Error('page_images_incomplete')
+export async function uploadPageImages(eventId: string, files: PageImageFiles, isActive: boolean, savedPath: string | null = null) {
+  if (!files.login && !files.entry) throw new Error('page_images_incomplete')
+  let saved: Awaited<ReturnType<typeof downloadPageImages>> | null = null
+  if ((!files.login || !files.entry) && savedPath) saved = await downloadPageImages(savedPath)
+  if ((!files.login && !saved?.login) || (!files.entry && !saved?.entry))
+    throw new Error('page_images_incomplete')
   const [loginImage, entryImage] = await Promise.all([
-    compressImageForUpload(files.login), compressImageForUpload(files.entry),
+    files.login ? compressImageForUpload(files.login) : Promise.resolve(saved!.login),
+    files.entry ? compressImageForUpload(files.entry) : Promise.resolve(saved!.entry),
   ])
   const archive = zipSync({
     'images/page/login.jpg': new Uint8Array(await loginImage.arrayBuffer()),
@@ -71,15 +76,20 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
   }
 
   useEffect(() => {
+    let cancelled = false
     let urls: string[] = []
     setSavedPreviews(null)
+    setError('')
     if (pageImagesPath) {
       void downloadPageImages(pageImagesPath).then((images) => {
+        if (cancelled) return
         urls = [URL.createObjectURL(images.login), URL.createObjectURL(images.entry)]
         setSavedPreviews({ login: urls[0], entry: urls[1] })
-      }).catch(() => setError('保存済みページ画像の読み込みに失敗しました。'))
+      }).catch(() => {
+        if (!cancelled) setError('保存済みページ画像の読み込みに失敗しました。')
+      })
     }
-    return () => urls.forEach(URL.revokeObjectURL)
+    return () => { cancelled = true; urls.forEach(URL.revokeObjectURL) }
   }, [pageImagesPath])
 
   return (
@@ -106,6 +116,7 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
       </div>
       {editing && (
         <ImageCropModal
+          previewTarget={editing.target}
           file={editing.file}
           title={`${editing.target === 'login' ? 'ログインページ' : '回答入力画面'}画像の調整`}
           aspectRatio={editing.target === 'login' ? null : 16 / 5}
