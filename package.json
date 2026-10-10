@@ -17,7 +17,8 @@
     "backend:status": "docker compose exec backend supabase status",
     "backend:reset": "docker compose exec backend supabase db reset",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/package-mock.mjs",
+    "build:mock": "npm --prefix mock/source run build",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
