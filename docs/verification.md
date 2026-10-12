@@ -55,3 +55,14 @@ Docker開発環境は `http://localhost:5173/` で起動できましたが、こ
 - ローカル文書リンクとgit diff --checkを確認。
 
 ブラウザーの初期接続は「No browser is available」、復旧手順による一覧も空でした。AC-01〜06の自動/DB検証は実施済みですが、実ブラウザーの画像描画・再読込・PC/スマートフォン表示と全画面の手動回帰（AC-07を含む）は未実施です。操作可能なブラウザーを接続し、ローカル `http://localhost:5173/` で一般ユーザーと管理者の確認を再開する必要があります。手動検証完了とは扱いません。本番反映・pushは行っていません。
+
+## 2026-10-12 開催回切替の管理者認証修正
+
+activate-eventがservice_roleクライアントでset_active_eventを呼んでいたため、DB側のauth.uid()による管理者判定で `administrator required` が発生していました。requireAdminに返却クライアントの種別を追加し、activate-eventの開催回読取・切替・復元では検証済み呼出元JWTをAuthorizationへ設定します。ユーザー作成・パスワード再発行は従来のservice_roleクライアントを使用します。DB関数の管理者チェック・実行権限は変更していません。
+
+- Dockerの `npm run test`：14ファイル99件成功。追加したEdge Functionテスト10件は実SDKとHTTP応答スタブを使い、JWT引継ぎ、復元、一般ユーザー/無効JWT/未認証の拒否、画像必須、ローカル切替、既存service_role経路、エラーログを確認します。
+- [DBテスト](../supabase/tests/event_activation.sql)：ローカルDBへpsql経由で実行して11件すべてok、最後にrollback。管理者の切替・復元、一般ユーザーの拒否、本人情報なしservice_roleの拒否、active一件制約、存在しない開催回の拒否を確認。Supabase Workflowにも実行を追加しました。
+- Deno 2.4.5の `deno check --frozen`：Edge Functions4件成功。
+- `npm run lint` と `git diff --check`：成功。
+
+本番への反映・pushは未実施です。ブラウザー操作と本番での切替確認は未実施で、ローカルのDB権限テストとHTTP応答スタブによるFunction検証を行っています。

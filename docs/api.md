@@ -48,7 +48,7 @@ activate-eventはeventIdを36文字の16進文字/ハイフンの正規表現で
 
 page-images-archiveだけはverify_jwt=falseで、PAGE_DEPLOY_SECRETとX-Deploy-Secretの一致を要求します。service_roleクライアントでactive開催回を取得し、page-imagesのZIPへ署名URLを発行します。管理者JWTで認証するエンドポイントではありません。
 
-`requireAdmin` が返すクライアントはservice_roleキーで作成され、呼出元JWTをクライアントのAuthorizationとして設定していません。一方set_active_event内は引数なしis_admin()を使用します。この組み合わせの実環境での成功は今回未検証であり、呼出元がadminなら必ずRPCも成功すると断定しません。
+`requireAdmin` はservice_roleクライアントで呼出元JWTとprofiles.roleを検証します。create-user / reset-user-passwordにはそのクライアントを返し、activate-eventは `user` を指定して検証済み呼出元JWTをAuthorizationへ設定した別クライアントを取得します。開催回の読取・切替・直前activeへの復元は本人の認証情報で実行し、set_active_event内のis_admin()も本人を判定します。RPCの切替・復元失敗は詳細をサーバーログへ記録し、API応答は固定エラーコードを返します。
 
 ## 実装根拠
 
