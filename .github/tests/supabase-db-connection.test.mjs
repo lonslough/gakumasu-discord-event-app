@@ -115,3 +115,46 @@ test('checks required settings before requesting the API', async () => {
   await assert.rejects(prepareDatabaseConnection({ env: {}, fetchConfig: () => assert.fail('must not fetch') }),
     { message: 'Missing deployment setting: SUPABASE_PROJECT_ID' })
 })
+
+
+test('uses the configured Dashboard host without requesting the forbidden API', async () => {
+  await withEnvironment(async env => {
+    env.SUPABASE_DB_POOLER_HOST = host
+    delete env.SUPABASE_ACCESS_TOKEN
+    const logs = []
+    await prepareDatabaseConnection({ env, log: value => logs.push(value),
+      fetchConfig: () => assert.fail('must not call the pooler API') })
+    const exported = await readFile(env.GITHUB_ENV, 'utf8')
+    const url = new URL(exported.trim().slice('SUPABASE_DB_URL='.length))
+    assert.equal(url.hostname, host)
+    assert.equal(url.port, '5432')
+    assert.equal(decodeURIComponent(url.username), 'postgres.' + projectRef)
+    assert.equal(decodeURIComponent(url.password), password)
+    assert.equal(url.searchParams.get('sslmode'), 'require')
+    assert.equal(logs[0], '::add-mask::' + url.href.replaceAll('%', '%25'))
+  })
+})
+
+for (const invalidHost of ['db.' + projectRef + '.supabase.co', host + ':5432',
+  'postgres://SECRET_PASSWORD@' + host, host + '/postgres', host + '@evil.example', '   ']) {
+  test('rejects an invalid configured host before any API request or credential export: ' + invalidHost, async () => {
+    await withEnvironment(async env => {
+      env.SUPABASE_DB_POOLER_HOST = invalidHost
+      await assert.rejects(prepareDatabaseConnection({ env,
+        fetchConfig: () => assert.fail('must not fetch'), log: () => assert.fail('must not export') }), error => {
+        assert.match(error.message, /Invalid SUPABASE_DB_POOLER_HOST/)
+        assert.equal(error.message.includes('SECRET_PASSWORD'), false)
+        return true
+      })
+      await assert.rejects(readFile(env.GITHUB_ENV), { code: 'ENOENT' })
+    })
+  })
+}
+
+test('requires an API token only when no Dashboard host is configured', async () => {
+  await withEnvironment(async env => {
+    delete env.SUPABASE_ACCESS_TOKEN
+    await assert.rejects(prepareDatabaseConnection({ env, fetchConfig: () => assert.fail('must not fetch') }),
+      { message: 'Missing deployment setting: SUPABASE_ACCESS_TOKEN' })
+  })
+})
