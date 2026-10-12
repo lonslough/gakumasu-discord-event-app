@@ -66,3 +66,13 @@ activate-eventがservice_roleクライアントでset_active_eventを呼んで�
 - `npm run lint` と `git diff --check`：成功。
 
 本番への反映・pushは未実施です。ブラウザー操作と本番での切替確認は未実施で、ローカルのDB権限テストとHTTP応答スタブによるFunction検証を行っています。
+
+## 2026-10-12 SupabaseデプロイのIPv4接続修正
+
+Actionsのdb push --linkedがIPv6へ接続して失敗するため、Management APIからPRIMARYの共有poolerを取得し、Session modeの5432番・TLS必須の接続URLを明示してdb push --db-urlを実行するようWorkflowを変更しました。既存のSecretsを使用し、URL内パスワードをエンコードしてURL全体をActionsログでマスクします。API取得・接続先検証の失敗はDB更新前に停止します。inbucketの非推奨警告は今回の接続失敗原因ではなく、設定は変更していません。
+
+- 接続設定テスト14件と既存自動マージ保護テスト21件、計35件成功。API応答・ネットワークはスタブで、対象プロジェクト/PRIMARYの選択、Session modeへの変換、秘密情報のマスク、API403/不正JSON等の停止を検証。
+- 同じSupabase CLI 2.109.1でローカルDBへ明示URLによるdb push --dry-runを実行し、Local database is up to dateを確認。DBへの適用は行っていません。
+- Workflow YAMLの解析、Lint、git diff --checkは成功。
+
+本番APIからのpooler取得、本番DBへの接続・適用、Actionsの再実行、pushは未実施です。ローカルdry-runは本番pooler接続成功の証明ではありません。
