@@ -39,6 +39,9 @@ jobs:
       - name: Test participation history access
         run: supabase test db supabase/tests/submission_history.sql
 
+      - name: Test event activation access
+        run: supabase test db supabase/tests/event_activation.sql
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.4.5
