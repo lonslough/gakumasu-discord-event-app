@@ -31,27 +31,40 @@ export function sessionPoolerUrl(configs, projectRef, password) {
 }
 
 export async function prepareDatabaseConnection({ env = process.env, fetchConfig = fetch, log = console.log } = {}) {
-  for (const name of ['SUPABASE_PROJECT_ID', 'SUPABASE_ACCESS_TOKEN', 'SUPABASE_DB_PASSWORD', 'GITHUB_ENV']) {
+  for (const name of ['SUPABASE_PROJECT_ID', 'SUPABASE_DB_PASSWORD', 'GITHUB_ENV']) {
     if (!env[name]) throw new Error('Missing deployment setting: ' + name)
   }
   const projectRef = env.SUPABASE_PROJECT_ID
   if (!/^[a-z0-9]{20}$/.test(projectRef)) throw new Error('Invalid SUPABASE_PROJECT_ID.')
-  let response
-  try {
-    response = await fetchConfig('https://api.supabase.com/v1/projects/' + projectRef + '/config/database/pooler', {
-      headers: { Authorization: 'Bearer ' + env.SUPABASE_ACCESS_TOKEN },
-      signal: AbortSignal.timeout(15000),
-    })
-  } catch {
-    throw new Error('Failed to retrieve Supabase pooler configuration over HTTPS.')
-  }
-  if (!response.ok) {
-    throw new Error('Supabase pooler configuration request failed (HTTP ' + response.status
-      + '). Check the access token and its database_pooling_config_read permission.')
-  }
   let configs
-  try { configs = await response.json() } catch {
-    throw new Error('Supabase pooler configuration response was not valid JSON.')
+  if (env.SUPABASE_DB_POOLER_HOST) {
+    const host = env.SUPABASE_DB_POOLER_HOST.trim()
+    if (!/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(host)) {
+      throw new Error('Invalid SUPABASE_DB_POOLER_HOST. Copy only the Host from Dashboard > Connect > Session pooler.')
+    }
+    configs = [{
+      database_type: 'PRIMARY', pool_mode: 'session',
+      connection_string: 'postgresql://postgres.' + projectRef + '@' + host + ':5432/postgres',
+    }]
+  } else {
+    if (!env.SUPABASE_ACCESS_TOKEN) throw new Error('Missing deployment setting: SUPABASE_ACCESS_TOKEN')
+    let response
+    try {
+      response = await fetchConfig('https://api.supabase.com/v1/projects/' + projectRef + '/config/database/pooler', {
+        headers: { Authorization: 'Bearer ' + env.SUPABASE_ACCESS_TOKEN },
+        signal: AbortSignal.timeout(15000),
+      })
+    } catch {
+      throw new Error('Failed to retrieve Supabase pooler configuration over HTTPS.')
+    }
+    if (!response.ok) {
+      throw new Error('Supabase pooler configuration request failed (HTTP ' + response.status
+        + '). Check the access token and its database_pooling_config_read permission,'
+        + ' or set SUPABASE_DB_POOLER_HOST from Dashboard > Connect > Session pooler.')
+    }
+    try { configs = await response.json() } catch {
+      throw new Error('Supabase pooler configuration response was not valid JSON.')
+    }
   }
   const dbUrl = sessionPoolerUrl(configs, projectRef, env.SUPABASE_DB_PASSWORD)
   // Mask the full URL before exporting it to subsequent Actions steps.

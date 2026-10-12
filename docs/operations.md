@@ -63,7 +63,7 @@ values ('AUTH_USER_UUID', 'admin', 'admin');
 
 | 設定先 | 名前 |
 | --- | --- |
-| Actions Variables | VITE_SUPABASE_URL、SUPABASE_PROJECT_ID |
+| Actions Variables | VITE_SUPABASE_URL、SUPABASE_PROJECT_ID、SUPABASE_DB_POOLER_HOST（任意） |
 | Actions Secrets | VITE_SUPABASE_ANON_KEY、SUPABASE_ACCESS_TOKEN、SUPABASE_DB_PASSWORD |
 | Environments | Supabase用production、Pages用github-pages |
 
@@ -88,6 +88,7 @@ FunctionとActions Secretに同一のPAGE_DEPLOY_SECRETを設定し、Actions Va
 | PAGE_DEPLOY_SECRET | FunctionとActionsが共有するZIP取得認証 |
 | PAGE_IMAGES_ENDPOINT | Actions Variable、ZIP署名URL取得FunctionのURL |
 | SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD / SUPABASE_PROJECT_ID | ActionsからSupabaseデプロイ |
+| SUPABASE_DB_POOLER_HOST | 本番DBのSession poolerホスト。任意のActions Variableで標準値を上書き |
 
 秘密値は文書・フロント成果物へ記載しません。ViteのbaseはGITHUB_ACTIONS有効時にGITHUB_REPOSITORYから計算します。
 
@@ -103,7 +104,9 @@ Supabaseのmain push対象パスはsupabase/**、deno.lock、同Workflow自身�
 
 Pages concurrencyはPR番号ごと（本番はpages-production）で進行中をキャンセル、SupabaseもPR番号ごと（本番はsupabase-production）で直列化しキャンセルしません。別PRや本番配信との競合を避けます。Pages配信environmentはgithub-pages、Supabaseはproduction。main向けPRは検証・自動マージの対象外です。
 
-本番DBの接続先は [接続設定スクリプト](../scripts/supabase-db-connection.mjs) が既存SUPABASE_ACCESS_TOKENを使ってManagement APIから取得します。PRIMARYの共有poolerを選び、Session modeの5432番・TLS必須のURLを作成し、`supabase db push --db-url` へ渡します。IPv6の直接接続やlink時のpoolerキャッシュには依存しません。SUPABASE_DB_PASSWORDはURLエンコードし、URL全体をActionsログでマスクしてからGITHUB_ENVへ保存します。API取得・検証失敗時はDB更新前に停止し、トークンには `database_pooling_config_read` 権限が必要です。リージョンから接続ホストを推測しません。追加Secretsは不要です。
+本番DBの接続先は [接続設定スクリプト](../scripts/supabase-db-connection.mjs) にSUPABASE_DB_POOLER_HOSTで指定します。Workflowの標準値は、対象プロジェクトのDashboard → Connect → Session poolerで確認済みの `aws-0-ap-northeast-1.pooler.supabase.com` です。別プロジェクト・ホストへ変更する場合は同名Actions VariableでHostだけを上書きします。指定時はManagement APIを呼ばず、postgres.SUPABASE_PROJECT_ID・Session modeの5432番・TLS必須のURLを作成して `supabase db push --db-url` へ渡します。IPv6の直接接続やlink時のpoolerキャッシュには依存しません。SUPABASE_DB_PASSWORDはURLエンコードし、URL全体をActionsログでマスクしてからGITHUB_ENVへ保存します。追加Secretsは不要です。
+
+スクリプトをホスト未指定で実行した場合のみ、SUPABASE_ACCESS_TOKENでManagement APIからPRIMARYのpoolerを取得します。この自動取得には `database_pooling_config_read` 権限が必要で、403の場合はホスト指定かトークンの権限確認が必要です。API取得・接続先検証失敗時はDB更新前に停止します。Functionデプロイには引き続き対象プロジェクトへデプロイできるSUPABASE_ACCESS_TOKENが必要です。
 
 Pagesの画像取得は共有secret→900秒署名URL→ZIPダウンロード→展開。エンドポイント未設定なら組み込みpublicを使用し、設定済みで取得が失敗すればbuildへ進みません。Supabase DB適用が失敗すればFunction配信を開始せず、自動rollbackはしません。
 

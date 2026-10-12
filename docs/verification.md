@@ -76,3 +76,13 @@ Actionsのdb push --linkedがIPv6へ接続して失敗するため、Management 
 - Workflow YAMLの解析、Lint、git diff --checkは成功。
 
 本番APIからのpooler取得、本番DBへの接続・適用、Actionsの再実行、pushは未実施です。ローカルdry-runは本番pooler接続成功の証明ではありません。
+
+## 2026-10-12 pooler設定取得APIの403対応
+
+本番Actionsでpooler設定取得APIがHTTP403を返したため、SUPABASE_DB_POOLER_HOST指定時はAPIを呼ばずに接続URLを作成する経路を追加しました。ユーザーがDashboardのSession poolerで確認した `aws-0-ap-northeast-1.pooler.supabase.com` をWorkflowの標準値に設定し、任意の同名Actions Variableで上書きできます。DBパスワードは既存Secretを使用し、URLエンコード・ログのマスク・TLS必須・対象プロジェクトの検証を維持しています。
+
+- 接続設定22件と自動マージ保護21件、計43件成功。Host指定経路はAPIが呼ばれると失敗するスタブで検証し、API読取トークンなしでも接続URLを作成できること、不正Hostの拒否を確認。
+- ユーザーが確認したHostのIPv4 DNS解決とTCP5432番への接続は成功。認証情報は送信せず、DBへのログイン・更新は未実施です。
+- Workflow YAML解析、Lint、git diff --checkは成功。
+
+本番Actionsの再実行、実DB認証、Function配信、pushは未実施です。Function配信には引き続き対象プロジェクトへデプロイできるトークンが必要です。
