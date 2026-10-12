@@ -8,6 +8,8 @@ on:
     paths:
       - "supabase/**"
       - "deno.lock"
+      - "scripts/supabase-db-connection.mjs"
+      - ".github/tests/supabase-db-connection.test.mjs"
       - ".github/workflows/supabase-deploy.yml"
   workflow_dispatch:
 
@@ -29,6 +31,13 @@ jobs:
         with:
           version: 2.109.1
           github-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test deployment database connection setup
+        run: node --test .github/tests/supabase-db-connection.test.mjs
 
       - name: Apply migrations to a fresh local database
         run: supabase db start
@@ -71,17 +80,21 @@ jobs:
           version: 2.109.1
           github-token: ${{ github.token }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Check deployment configuration
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN"
           test -n "$SUPABASE_DB_PASSWORD"
           test -n "$SUPABASE_PROJECT_ID"
 
-      - name: Link production project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+      - name: Configure IPv4 Session pooler connection
+        run: node scripts/supabase-db-connection.mjs
 
       - name: Deploy database migrations
-        run: supabase db push --linked
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
 
       - name: Deploy Edge Functions
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"

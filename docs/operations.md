@@ -96,12 +96,14 @@ FunctionとActions Secretに同一のPAGE_DEPLOY_SECRETを設定し、Actions Va
 | Workflow | 起動条件 | 処理 |
 | --- | --- | --- |
 | deploy.yml | main push、develop向けPR、手動 | 非PRかつPAGE_IMAGES_ENDPOINT設定ありならactive画像ZIPを取得してpublicへ展開。Node22、本番とmock/sourceのnpm ci、mock再ビルド、lint/test/build（dist/mockへ実行ファイルを同梱）。非PRだけPages配信 |
-| supabase-deploy.yml | develop向け全PR、main pushの対象ファイル変更、手動 | DB起動、migration適用、DB lint、Deno2.4.5で4Function型検査。非PRだけproductionへDB push後Function一括deploy |
+| supabase-deploy.yml | develop向け全PR、main pushの対象ファイル変更、手動 | Node22で接続設定テスト、DB起動、migration適用、DB lint・権限テスト、Deno2.4.5で4Function型検査。非PRだけproductionへIPv4 Session poolerでDB push後Function一括deploy |
 | auto-merge.yml | 両検証Workflowの完了、develop向けPRのready_for_review | develop向け非ドラフトPRについて、最新コミット・現在のbaseに対応する両Workflowの最新実行が成功した場合だけマージ |
 
-Supabaseのmain push対象パスはsupabase/**、deno.lock、同Workflow自身。develop向けPRでは両検証を必ず実行し、未開始・実行中・失敗・キャンセル・スキップは自動マージの成功条件を満たしません。マージAPIには検証済みのhead SHAを指定し、確認後に新しいコミットが追加された場合はマージを拒否します。権限のある自動マージWorkflowではPRコードをcheckout・実行しません。workflow_runの起動にはauto-merge.ymlがデフォルトブランチに存在する必要があります。
+Supabaseのmain push対象パスはsupabase/**、deno.lock、同Workflow自身、接続設定スクリプトとそのテスト。develop向けPRでは両検証を必ず実行し、未開始・実行中・失敗・キャンセル・スキップは自動マージの成功条件を満たしません。マージAPIには検証済みのhead SHAを指定し、確認後に新しいコミットが追加された場合はマージを拒否します。権限のある自動マージWorkflowではPRコードをcheckout・実行しません。workflow_runの起動にはauto-merge.ymlがデフォルトブランチに存在する必要があります。
 
 Pages concurrencyはPR番号ごと（本番はpages-production）で進行中をキャンセル、SupabaseもPR番号ごと（本番はsupabase-production）で直列化しキャンセルしません。別PRや本番配信との競合を避けます。Pages配信environmentはgithub-pages、Supabaseはproduction。main向けPRは検証・自動マージの対象外です。
+
+本番DBの接続先は [接続設定スクリプト](../scripts/supabase-db-connection.mjs) が既存SUPABASE_ACCESS_TOKENを使ってManagement APIから取得します。PRIMARYの共有poolerを選び、Session modeの5432番・TLS必須のURLを作成し、`supabase db push --db-url` へ渡します。IPv6の直接接続やlink時のpoolerキャッシュには依存しません。SUPABASE_DB_PASSWORDはURLエンコードし、URL全体をActionsログでマスクしてからGITHUB_ENVへ保存します。API取得・検証失敗時はDB更新前に停止し、トークンには `database_pooling_config_read` 権限が必要です。リージョンから接続ホストを推測しません。追加Secretsは不要です。
 
 Pagesの画像取得は共有secret→900秒署名URL→ZIPダウンロード→展開。エンドポイント未設定なら組み込みpublicを使用し、設定済みで取得が失敗すればbuildへ進みません。Supabase DB適用が失敗すればFunction配信を開始せず、自動rollbackはしません。
 
