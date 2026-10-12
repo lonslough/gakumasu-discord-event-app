@@ -31,7 +31,10 @@ export function internalEmailForUserId(userId: string): string {
   return `${localPart}@app.invalid`
 }
 
-export async function requireAdmin(request: Request) {
+export async function requireAdmin(
+  request: Request,
+  clientRole: 'service_role' | 'user' = 'service_role',
+) {
   const url = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const authorization = request.headers.get('Authorization')
@@ -50,7 +53,14 @@ export async function requireAdmin(request: Request) {
     .select('role')
     .eq('id', user.id)
     .single()
-  return profile?.role === 'admin' ? admin : null
+  if (profile?.role !== 'admin') return null
+  if (clientRole === 'service_role') return admin
+
+  // Keep the verified caller's identity for RPCs that check auth.uid().
+  return createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: authorization } },
+  })
 }
 
 const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'

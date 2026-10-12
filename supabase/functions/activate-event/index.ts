@@ -4,7 +4,7 @@ import { dispatchPagesDeploy, githubInstallationToken } from '../_shared/github.
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
-  const admin = await requireAdmin(request)
+  const admin = await requireAdmin(request, 'user')
   if (!admin) return json({ error: 'forbidden' }, 403)
   let eventId: string
   try {
@@ -21,7 +21,10 @@ Deno.serve(async (request) => {
   const { data: previous } = await admin.from('event_editions')
     .select('id').eq('is_active', true).maybeSingle()
   const { error: activateError } = await admin.rpc('set_active_event', { p_event_id: eventId })
-  if (activateError) return json({ error: 'activate_failed' }, 500)
+  if (activateError) {
+    console.error('Failed to activate event', activateError)
+    return json({ error: 'activate_failed' }, 500)
+  }
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   if (/localhost|127\.0\.0\.1|host\.docker\.internal|\/\/kong(?::|\/)/.test(supabaseUrl))
     return json({ status: 'activated_locally' })
@@ -30,7 +33,10 @@ Deno.serve(async (request) => {
     await dispatchPagesDeploy(token)
   } catch (error) {
     console.error(error)
-    if (previous?.id) await admin.rpc('set_active_event', { p_event_id: previous.id })
+    if (previous?.id) {
+      const { error: restoreError } = await admin.rpc('set_active_event', { p_event_id: previous.id })
+      if (restoreError) console.error('Failed to restore active event', restoreError)
+    }
     return json({ error: 'deploy_trigger_failed' }, 502)
   }
   return json({ status: 'deploying' })
