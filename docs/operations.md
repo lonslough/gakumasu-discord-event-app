@@ -116,7 +116,11 @@ Vitest、jsdom、Testing Library。npm run testはvitest run、buildはtsc -b後
 
 参加履歴はHistoryPage/HistoryImageのコンポーネントテストとRoutesの認証・遷移テストで検証します。DB権限テストは `supabase test db supabase/tests/submission_history.sql`。Supabase WorkflowでもDB lint後に実行します。ローカルDBでテスト専用データをトランザクション内に作成し、最後にrollbackするため既存の回答や開催回は残ります。
 
+回答入力のポイントは[EntryPage.test.tsx](../src/pages/EntryPage.test.tsx)で表示・保存後更新・期間終了・入力保持・古い応答破棄を検証し、`supabase test db supabase/tests/entry_rank_neighbor.sql`で順位計算・本人限定・期間境界を検証します。Supabase WorkflowにもこのDBテストを追加しています。既存ローカルDBへの追加migrationは `supabase migration up --local`で適用でき、db resetは不要です。
+
 Compose内のSupabase CLIからテスト用コンテナを起動すると、Dockerホストに `/workspace` が存在せずテストSQLをマウントできない場合があります。その場合は同SQLをローカルDBコンテナのpsqlへ標準入力で渡し、ON_ERROR_STOPを有効化して実行し、TAP結果が全件okであることを確認します。
+
+またはpg_proveコンテナーへホストのプロジェクトを直接読み取り専用マウントし、`--network container:<ローカルDBコンテナー>`で同SQLを実行できます。2026-10-20のローカル検証ではこの方法でポイント・参加履歴・受付対象切替の計49件を確認しました。接続先はローカルDBに限定します。
 
 既存テストはID/内部メール・画像/応募フォーム検証、パスワード生成、ランキング、検索/絞込/集計/CSV、回答保存順序/失敗時回収/期間タイマー、ページ画像プレビュー、canvas調整を対象とします。Supabaseモックやcanvasモックを用いるテストを含み、実DB RLSやブラウザーE2Eの成功を保証するものではありません。今回の設計書作成ではソース照合を実施し、テスト実行済みとは扱いません。
 

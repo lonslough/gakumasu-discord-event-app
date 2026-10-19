@@ -66,6 +66,8 @@ styles.cssに日本語フォント、ライト／ダーク配色、共通カー�
 
 エラーは各画面で日本語の固定文言へ変換します。ただしすべての例外を一括捕捉する共通Error Boundaryはありません。開催回や回答は画面取得時・保存後等に更新し、Realtime購読による全画面の自動同期はありません。
 
+回答入力の「1つ上の順位のポイント」は専用RPCが本人の保存済み回答を起点にサーバーで集計し、相手の確認済み得点だけを返します。受付中だけ表示し、表示時・保存成功後に更新します。一般ユーザーへランキング全体や他人の回答を返してから絞り込む方式ではありません。本人ID・開催回ID・保存成功ごとのkeyで表示コンポーネントを作り直し、旧リクエストの応答は破棄します。詳しくは[回答入力](screens/entry.md)と[API](api.md)を参照してください。
+
 ## 実装根拠
 
 [main.tsx](../src/main.tsx)、[Routes.tsx](../src/components/Routes.tsx)、[AuthContext.tsx](../src/contexts/AuthContext.tsx)、[supabase.ts](../src/lib/supabase.ts)、[Header.tsx](../src/components/Header.tsx)、[ThemeToggle.tsx](../src/components/ThemeToggle.tsx)、[theme.ts](../src/lib/theme.ts)、[Modal.tsx](../src/components/Modal.tsx)、[types.ts](../src/types.ts)、[styles.css](../src/styles.css)、[index.html](../index.html)、[404.html](../public/404.html)。

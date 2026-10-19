@@ -8,6 +8,19 @@
 
 共通Headerにライト／ダークテーマの切替を表示します。端末連動と保存規則は[共通設計](../architecture.md)を参照します。
 
+## 1つ上の順位のポイント
+
+受付中だけ、通知群の下・入力フォームの直前に「1つ上の順位のポイント」を表示します。PC・スマートフォンとも同じ順序です。`get_my_rank_neighbor(p_event_id)`で、現在開催回の本人の**保存済み回答**と同じキャラクター・応募部門から、確認済み得点の降順、同点は回答更新日時の昇順で直前の相手の得点を取得します。上位10名に限定しません。相手の名前・画像・自分の順位・点差は表示しません。
+
+- 相手がいる場合は得点をja-JPの桁区切りで表示。0点も表示します。
+- 本人が1位なら「現在1位です」。
+- 未回答・未確認・無効・得点未登録で本人に順位がない場合は、見出しを含め欄全体を非表示。
+- 取得中はスピナー、失敗時は「ポイントを取得できませんでした」。フォーム入力は維持し、再試行ボタンは設けません。
+
+画面表示時と保存成功後に取得します。未保存のキャラクター選択には追従せず、画面を開き直すと再取得します。本人ID・開催回ID・保存後の更新番号をコンポーネントのkeyにし、変更時に読込状態へ戻します。離脱後の古い応答は反映しません。受付期間の境界で既存の設定再取得が行われると表示可否も更新し、期間外はエラーやスピナーも含め非表示です。RPC側も受付中のactive開催回だけを許可します。
+
+画面・保存後更新・遅延応答をコンポーネントテスト、順位計算・権限・期間境界をローカルDBテストで確認しています。ブラウザー未接続のためPC／スマートフォンの実描画・手動操作は検証保留。[検証記録](../verification.md)を参照してください。
+
 ## 入力項目
 
 | 項目 | 入力制約 |
@@ -55,4 +68,4 @@ entryServiceは既存回答の応募部門を優先し、event_id/user_idをキ�
 
 ## 実装根拠
 
-[EntryPage.tsx](../../src/pages/EntryPage.tsx)、[EntryFormFields.tsx](../../src/components/entry/EntryFormFields.tsx)、[ImageFileField.tsx](../../src/components/entry/ImageFileField.tsx)、[entryService.ts](../../src/lib/entryService.ts)、[validation.ts](../../src/lib/validation.ts)。
+[EntryPage.tsx](../../src/pages/EntryPage.tsx)、[EntryRankPoints.tsx](../../src/components/entry/EntryRankPoints.tsx)、[EntryFormFields.tsx](../../src/components/entry/EntryFormFields.tsx)、[ImageFileField.tsx](../../src/components/entry/ImageFileField.tsx)、[entryService.ts](../../src/lib/entryService.ts)、[validation.ts](../../src/lib/validation.ts)、[ポイントRPC](../../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql)、[画面テスト](../../src/pages/EntryPage.test.tsx)、[DBテスト](../../supabase/tests/entry_rank_neighbor.sql)。

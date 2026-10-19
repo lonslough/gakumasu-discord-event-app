@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { EntryFormFields } from '../components/entry/EntryFormFields'
+import { EntryRankPoints } from '../components/entry/EntryRankPoints'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -56,6 +57,7 @@ export function EntryPage() {
   const [eventSettings, setEventSettings] = useState<EventSettings | null>(null)
   const [showingRules, setShowingRules] = useState(false)
   const rulesAutoShown = useRef(false)
+  const [rankRevision, setRankRevision] = useState(0)
 
   const load = useCallback(async () => {
     if (!session || !eventSettings?.event_id) return
@@ -134,6 +136,7 @@ export function EntryPage() {
       if (!latestSettings?.accepting_submissions) throw new Error('period')
       await saveEntry({ userId: session.user.id, eventId: latestSettings.event_id, values, existing })
       setMessage('回答を保存しました。')
+      setRankRevision((revision) => revision + 1)
       await load()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
@@ -217,6 +220,12 @@ export function EntryPage() {
         <div className="notice error" role="alert">
           {failure}
         </div>
+      )}
+      {session && eventSettings?.accepting_submissions && (
+        <EntryRankPoints
+          key={`${session.user.id}:${eventSettings.event_id}:${rankRevision}`}
+          eventId={eventSettings.event_id}
+        />
       )}
       <form onSubmit={requestSubmit} noValidate>
         <fieldset

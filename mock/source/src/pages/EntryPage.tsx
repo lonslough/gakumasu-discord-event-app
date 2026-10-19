@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { EntryFormFields } from '../components/entry/EntryFormFields'
+import { EntryRankPoints, type EntryRankResult } from '../components/entry/EntryRankPoints'
+import { MockRankScenarios } from '../components/entry/MockRankScenarios'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -9,7 +11,7 @@ import {
   getSettingsRefreshDelay,
   saveEntry,
 } from '../lib/entryService'
-import { supabase } from '../lib/supabase'
+import { getMockEntryScenario, setMockEntryScenario, supabase, type MockEntryScenario } from '../lib/supabase'
 import { siteAssetUrl, useSiteConfig } from '../lib/siteConfig'
 import { validateEntry, type EntryValues } from '../lib/validation'
 import type { EventSettings, Submission } from '../types'
@@ -56,6 +58,28 @@ export function EntryPage() {
   const [eventSettings, setEventSettings] = useState<EventSettings | null>(null)
   const [showingRules, setShowingRules] = useState(false)
   const rulesAutoShown = useRef(false)
+  const [rankResult, setRankResult] = useState<EntryRankResult>({ status: 'loading', higher_score: null })
+  const [rankRevision, setRankRevision] = useState(0)
+  const [previewScenario, setPreviewScenario] = useState(getMockEntryScenario)
+
+  useEffect(() => {
+    if (!session || !eventSettings?.event_id || !eventSettings.accepting_submissions) {
+      setRankResult({ status: 'closed', higher_score: null })
+      return
+    }
+    let cancelled = false
+    setRankResult({ status: 'loading', higher_score: null })
+    const fetchRank = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_my_rank_neighbor', { p_event_id: eventSettings.event_id })
+        if (!cancelled) setRankResult(error || !data ? { status: 'error', higher_score: null } : data as EntryRankResult)
+      } catch {
+        if (!cancelled) setRankResult({ status: 'error', higher_score: null })
+      }
+    }
+    void fetchRank()
+    return () => { cancelled = true }
+  }, [session?.user.id, eventSettings?.event_id, eventSettings?.accepting_submissions, rankRevision])
 
   const load = useCallback(async () => {
     if (!session || !eventSettings?.event_id) return
@@ -135,6 +159,7 @@ export function EntryPage() {
       await saveEntry({ userId: session.user.id, eventId: latestSettings.event_id, values, existing })
       setMessage('回答を保存しました。')
       await load()
+      setRankRevision((value) => value + 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
       let saveError = error
@@ -218,6 +243,7 @@ export function EntryPage() {
           {failure}
         </div>
       )}
+      {eventSettings?.accepting_submissions && <EntryRankPoints result={rankResult} />}
       <form onSubmit={requestSubmit} noValidate>
         <fieldset
           className="entry-form-fields"
@@ -240,6 +266,12 @@ export function EntryPage() {
           {submitLabel}
         </button>
       </form>
+      <MockRankScenarios value={previewScenario} onChange={(scenario: MockEntryScenario) => {
+        setMockEntryScenario(scenario)
+        setPreviewScenario(scenario)
+        setRankRevision((value) => value + 1)
+        void loadEventSettings()
+      }} />
       {confirming && (
         <Modal
           title="送信内容の確認"

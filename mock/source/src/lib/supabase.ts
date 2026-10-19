@@ -1,6 +1,11 @@
 // In-memory adapter. No backend, browser storage, cookies or service workers.
 import { characterRoster } from './characters'
 import { cacheLocalPageImagesFromStorage } from './localPageImages'
+import { rankedByCategoryAndDivision } from './ranking'
+export type MockEntryScenario = 'normal' | 'tie' | 'zero' | 'below-ten' | 'first' | 'pending' | 'invalid' | 'no-score' | 'error' | 'before' | 'after'
+let entryScenario: MockEntryScenario = 'normal'
+export const getMockEntryScenario = () => entryScenario
+export function setMockEntryScenario(value: MockEntryScenario) { entryScenario = value }
 const now = () => new Date().toISOString()
 const stamp = '2026-10-01T09:00:00+09:00'
 export const isConfigured = true
@@ -25,6 +30,9 @@ const events = editionSeeds.map((seed, i) => ({
 const submissions = [0,1,2,3].map((i)=>({id:'submission'+i,event_id:'current',user_id:'user'+(i+1),discord_username:['星南推し','つばめP','新人プロデューサー','星々のきらめき'][i],producer_name:'プロデューサー'+(i+1),category:i%2?'tsubame':'sena',entry_division:['open','switch_off','beginner','open'][i],score_image_path:'sample-score',deck_image_path:null,beginner_proof_image_path:i===2?'sample-proof':null,login_days_proof_image_path:i===2?'sample-days':null,created_at:stamp,updated_at:stamp}))
 
 const reviews = [{submission_id:'submission0',confirmed_score:25300,verification_status:'verified',admin_note:'確認済み',verified_at:stamp,verified_by:'admin',updated_at:stamp},{submission_id:'submission1',confirmed_score:22100,verification_status:'verified',admin_note:'',verified_at:stamp,verified_by:'admin',updated_at:stamp},{submission_id:'submission3',confirmed_score:null,verification_status:'invalid',admin_note:'画像を確認してください',verified_at:null,verified_by:null,updated_at:stamp}]
+// v6: keep six accounts and four current answers; user4 is user1's higher-ranked peer.
+submissions[3].category = 'sena'
+Object.assign(reviews[2], { confirmed_score: 28000, verification_status: 'verified', admin_note: '', verified_at: stamp, verified_by: 'admin' })
 // Past answers follow the characters and dates of their edition.
 for (const event of events.filter(event => !event.is_active)) {
  for (let i = 0; i < 2; i++) {
@@ -44,6 +52,30 @@ const listeners = new Set()
 const ok = data => ({data:structuredClone(data),error:null})
 const denied = () => ({data:null,error:new Error('mock_permission_denied')})
 const admin = () => mockUsers.find(u=>u.id===session?.user.id)?.role==='admin'
+function entryPeriod(event) {
+ const time = Date.now()
+ const start = entryScenario === 'before' ? new Date(time + 3_600_000).toISOString() : event.submission_start_at
+ const end = entryScenario === 'after' ? new Date(time - 3_600_000).toISOString() : event.submission_end_at
+ return { submission_start_at: start, submission_end_at: end, accepting_submissions: Boolean(event.is_active && (!start || time >= Date.parse(start)) && (!end || time <= Date.parse(end))) }
+}
+function myRankNeighbor(eventId) {
+ const event = events.find(event => event.id === eventId)
+ if (!event || !entryPeriod(event).accepting_submissions) return ok({ status: 'closed', higher_score: null })
+ if (entryScenario === 'error') return { data: null, error: new Error('mock_rank_failed') }
+ if (['pending', 'invalid', 'no-score'].includes(entryScenario)) return ok({ status: 'unranked', higher_score: null })
+ if (entryScenario === 'first') return ok({ status: 'first', higher_score: null })
+ if (entryScenario === 'tie') return ok({ status: 'ranked', higher_score: 25300 })
+ if (entryScenario === 'zero') return ok({ status: 'ranked', higher_score: 0 })
+ if (entryScenario === 'below-ten') return ok({ status: 'ranked', higher_score: 26000 })
+ const mine = submissions.find(row => row.event_id === eventId && row.user_id === session.user.id)
+ if (!mine) return ok({ status: 'unranked', higher_score: null })
+ const rows = submissions.filter(row => row.event_id === eventId).map(row => ({ ...row, review: reviews.find(review => review.submission_id === row.id) ?? null }))
+ const ranking = rankedByCategoryAndDivision(rows, mine.category, mine.entry_division)
+ const index = ranking.findIndex(row => row.id === mine.id)
+ if (index < 0) return ok({ status: 'unranked', higher_score: null })
+ if (index === 0) return ok({ status: 'first', higher_score: null })
+ return ok({ status: 'ranked', higher_score: ranking[index - 1].review.confirmed_score })
+}
 function query(table) {
  const filters=[]; let operation='select', values, single=false, ordering
  const q={select(){return q},eq(key,value){filters.push([key,value]);return q},order(key,opts){ordering=[key,opts];return q},single(){single=true;return q},maybeSingle(){single=true;return q},insert(v){operation='insert';values=v;return q},update(v){operation='update';values=v;return q},upsert(v){operation='upsert';values=v;return q},then(resolve,reject){return Promise.resolve().then(()=>{
@@ -61,7 +93,7 @@ function query(table) {
  const batch=Array.isArray(values)?values:[values]; matched=[]
  for(const v of batch) {
  let existing=operation==='update'?rows.find(r=>filters.every(([k,x])=>r[k]===x)):operation==='upsert'?rows.find(r=>table==='submissions'?r.event_id===v.event_id&&r.user_id===v.user_id:r.submission_id===v.submission_id):null
- if(table==='submissions'&&existing) { const review=reviews.find(r=>r.submission_id===existing.id); const changed=['score_image_path','deck_image_path','beginner_proof_image_path','login_days_proof_image_path'].some(k=>existing[k]!==v[k]); if(review?.verification_status==='verified'&&changed) return {data:null,error:new Error('reviewed_image_locked')}; if(review) Object.assign(review,{verification_status:'pending',confirmed_score:null,verified_at:null,verified_by:null}) }
+ if(table==='submissions'&&existing) { const review=reviews.find(r=>r.submission_id===existing.id); const changed=['score_image_path','deck_image_path','beginner_proof_image_path','login_days_proof_image_path'].some(k=>existing[k]!==v[k]); if(review?.verification_status==='verified'&&changed) return {data:null,error:new Error('reviewed_image_locked')}; if(review&&['category','score_image_path','deck_image_path'].some(k=>existing[k]!==v[k])) Object.assign(review,{verification_status:'pending',confirmed_score:null,verified_at:null,verified_by:null}) }
  if(existing) Object.assign(existing,structuredClone(v),{updated_at:now()}); else { existing={id:crypto.randomUUID(),created_at:now(),updated_at:now(),is_active:false,page_images_path:null,...structuredClone(v)}; rows.push(existing) }; matched.push(existing)
  }
  }
@@ -78,7 +110,8 @@ export const supabase = {
  async rpc(name,args={}) {
  if(!session)return denied()
  const active=events.find(e=>e.is_active)
- if(name==='get_event_settings') {const time=Date.now();return ok({...active,event_id:active.id,event_name:active.name,server_now:now(),accepting_submissions:(!active.submission_start_at||time>=Date.parse(active.submission_start_at))&&(!active.submission_end_at||time<=Date.parse(active.submission_end_at))})}
+ if(name==='get_event_settings') return active ? ok({...active,...entryPeriod(active),event_id:active.id,event_name:active.name,server_now:now()}) : ok(null)
+ if(name==='get_my_rank_neighbor') return myRankNeighbor(args.p_event_id)
  if(name==='list_my_submission_history') return ok(submissions.filter(s=>s.user_id===session.user.id).map(s=>{const e=events.find(e=>e.id===s.event_id),r=reviews.find(r=>r.submission_id===s.id); const {user_id,...entry}=s;return {...entry,event_name:e.name,is_active:e.is_active,character_options:e.character_options,verification_status:r?.verification_status??'pending',confirmed_score:r?.verification_status==='verified'?r.confirmed_score:null}}).sort((a,b)=>b.updated_at.localeCompare(a.updated_at)))
  if(!admin()) return denied()
  if(name==='count_registered_users') return ok(mockUsers.filter(u=>u.role==='user').length)
