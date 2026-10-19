@@ -223,6 +223,28 @@ a {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.16);
 }
 
+.entry-rank-points {
+  margin: 20px 0 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--primary);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.entry-rank-points h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.entry-rank-points p { margin: 0; }
+.entry-rank-score { font-size: clamp(28px, 7vw, 38px); font-weight: 750; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.entry-rank-first { font-size: 20px; font-weight: 700; color: var(--text); }
+.entry-rank-points .spinner { margin: 12px 0; }
+.mock-rank-controls { margin: 28px 0; padding: 16px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 13px; }
+.mock-rank-controls summary { cursor: pointer; }
+.mock-rank-controls select { width: 100%; }
+
 .rules-editor-card {
   padding: 30px;
   margin-bottom: 24px;
