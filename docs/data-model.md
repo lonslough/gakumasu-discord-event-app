@@ -96,6 +96,8 @@ anonから主要テーブルへの権限を取り消します。is_adminはprofi
 
 参加履歴の[追加RPC](../supabase/migrations/20261006000000_add_submission_history.sql)は本人の回答に限定して確認状態・確認済み得点を公開します。submission_reviewsのSELECTポリシーはadmin限定のまま維持し、一般ユーザーへ管理メモを公開しません。未確認・無効の得点はRPCでnullへ変換します。追加テーブルや過去データの書き換えはありません。
 
+回答入力の[ポイントRPC](../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql)は新規テーブルを作らず、認証済み本人の保存済み回答を基準に同じ開催回・キャラクター・応募部門の確認済み得点から直前の1人の得点だけを返します。受付中のactive回に限定し、本人に順位がない場合や期間外の得点は返しません。SECURITY DEFINERで内部集計しますが、既存のsubmissions・submission_reviewsのRLSは変更せず、他人の回答や管理メモへの直接SELECTは引き続き拒否します。実行権限はauthenticatedのみ、auth.uid()が空の場合も拒否します。データ移行・既存回答の書き換えはありません。
+
 ## 現行挙動の注意点
 
 - list_user_summariesは全開催回の回答をuser_idのみで結合するため複数行になり、結合後100行に制限されます。
