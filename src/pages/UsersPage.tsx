@@ -75,7 +75,7 @@ export function UsersPage() {
 以下の情報からログインをしていただき回答をお願いします！
 ID：\`${issued.userId}\`
 🔑：\`${issued.password}\`
-URL：https://lonslough.github.io/gakumasu-server-event-app`
+URL：https://lonslough.github.io/gakumasu-discord-event-app`
     await navigator.clipboard.writeText(invitation)
     setCopiedInvitation(true)
   }
