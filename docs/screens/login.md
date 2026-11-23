@@ -37,3 +37,9 @@ IDは3〜32文字、半角英数字・ピリオド・ハイフン・アンダー
 2026-11-23再照合: ログインフォーム・成功時のentry転送は維持。未認証のランキングURLもログインへ転送され、ログイン後は既存同様entryへ移動します。認証後Headerの「ランキング」から公開回を閲覧できます。ルートテストとローカルAuth HTTPを確認、実ブラウザー手動操作は保留。[検証記録](../verification.md)。
 
 [LoginPage.tsx](../../src/pages/LoginPage.tsx)、[ThemeToggle.tsx](../../src/components/ThemeToggle.tsx)、[validation.ts](../../src/lib/validation.ts)、[AuthContext.tsx](../../src/contexts/AuthContext.tsx)、[siteConfig.ts](../../src/lib/siteConfig.ts)。
+
+## ページ画像の読み込み状態（2026-11-23）
+
+画像設定の解決・画像取得・デコード完了まで画像欄内にスピナーのみ表示します。取得・デコード失敗は静止スケルトンに切り替えます。確定前の既定画像や前の画像を一瞬表示せず、画像の準備中もフォーム操作は利用できます。ログインの既存useLoginLayoutと回答入力バナーの比率は維持します。共通処理は[PageImageState.tsx](../../src/components/PageImageState.tsx)、取得・キャッシュは[画像設計](../images.md)を参照してください。
+
+共通状態テストと全画面の既存テストは成功。PC/スマホ・ライト/ダークの実描画はブラウザー接続不能のため保留です。[検証記録](../verification.md)。

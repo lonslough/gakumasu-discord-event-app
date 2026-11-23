@@ -1,3 +1,4 @@
+import { ImageReviewControls } from './components/PageImageState'
 import './lib/fixtures'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')!).render(
     <Router>
       <AuthProvider>
         <AppRoutes />
+        <ImageReviewControls />
       </AuthProvider>
     </Router>
   </StrictMode>,

@@ -1,3 +1,4 @@
+import { PageImage, imageReviewDelay, useImageReview } from '../PageImageState'
 import { useEffect, useState } from 'react'
 import { strToU8, zipSync } from 'fflate'
 import { compressImageForUpload } from '../../lib/imageCompression'
@@ -61,6 +62,8 @@ function usePreview(file: File | null) {
 
 export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChange }: Props) {
   const config = useSiteConfig()
+  const review = useImageReview()
+  const [previewFailed, setPreviewFailed] = useState(false)
   const [error, setError] = useState('')
   const [savedPreviews, setSavedPreviews] = useState<{ login: string; entry: string } | null>(null)
   const [editing, setEditing] = useState<{ target: keyof PageImageFiles; file: File } | null>(null)
@@ -80,18 +83,19 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
     let cancelled = false
     let urls: string[] = []
     setSavedPreviews(null)
+    setPreviewFailed(false)
     setError('')
     if (pageImagesPath) {
-      void downloadPageImages(pageImagesPath).then((images) => {
+      void imageReviewDelay().then(() => downloadPageImages(pageImagesPath)).then((images) => {
         if (cancelled) return
         urls = [URL.createObjectURL(images.login), URL.createObjectURL(images.entry)]
         setSavedPreviews({ login: urls[0], entry: urls[1] })
       }).catch(() => {
-        if (!cancelled) setError('保存済みページ画像の読み込みに失敗しました。')
+        if (!cancelled) { setPreviewFailed(true); setError('保存済みページ画像の読み込みに失敗しました。') }
       })
     }
     return () => { cancelled = true; urls.forEach(URL.revokeObjectURL) }
-  }, [pageImagesPath])
+  }, [pageImagesPath, review.revision])
 
   return (
     <fieldset className="settings-section">
@@ -104,7 +108,7 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
             if (file) void openEditor('login', file)
             event.target.value = ''
           }} />
-          {(loginPreview || savedPreviews?.login || isActive) && <img className="page-image-preview" src={loginPreview || savedPreviews?.login || siteAssetUrl(config.loginImage)} alt="ログインページ画像のプレビュー" />}
+          {(loginPreview || pageImagesPath || isActive) && <PageImage className="page-image-preview" source={loginPreview || savedPreviews?.login || (!pageImagesPath && isActive && config.loginImage ? siteAssetUrl(config.loginImage) : undefined)} failed={!loginPreview && (previewFailed || (!pageImagesPath && (!isActive || config.failed)))} alt="ログインページ画像のプレビュー" />}
         </label>
         <label>回答入力画面画像
           <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(event) => {
@@ -112,7 +116,7 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
             if (file) void openEditor('entry', file)
             event.target.value = ''
           }} />
-          {(entryPreview || savedPreviews?.entry || isActive) && <img className="page-image-preview" src={entryPreview || savedPreviews?.entry || siteAssetUrl(config.entryImage)} alt="回答入力画面画像のプレビュー" />}
+          {(entryPreview || pageImagesPath || isActive) && <PageImage className="page-image-preview" source={entryPreview || savedPreviews?.entry || (!pageImagesPath && isActive && config.entryImage ? siteAssetUrl(config.entryImage) : undefined)} failed={!entryPreview && (previewFailed || (!pageImagesPath && (!isActive || config.failed)))} alt="回答入力画面画像のプレビュー" />}
         </label>
       </div>
       {editing && (

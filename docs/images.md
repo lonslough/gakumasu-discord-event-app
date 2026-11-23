@@ -40,12 +40,16 @@ site-config.json   # loginImage / entryImageに上記相対パスを指定
 
 ## 開発中の画像と設定取得
 
-useSiteConfigは既定画像 `images/tsubame-sena-title1.png` / `images/tsubame-sena-title2.png` で初期化し、BASE_URL配下のsite-config.jsonをno-cacheで取得。両キーがあれば反映し、取得失敗時は現在の値（既定画像またはDEVのローカル画像）を維持します。DEVでローカル画像を読み込んだ場合はJSONの値よりそちらを優先します。siteAssetUrlはblob/data/http(s)をそのまま、それ以外をBASE_URL相対にします。
+useSiteConfigは画像未確定のloading状態で開始し、BASE_URL配下のsite-config.jsonをcache:no-storeで取得します。loginImage/entryImageを検証してから同時に公開し、取得失敗・不正JSONはfailed状態にします。既定画像を暫定表示してから差し替える動作はありません。既定の配信画像はpublic/site-config.jsonに定義しています。siteAssetUrlはblob/data/http(s)をそのまま、それ以外をBASE_URL相対にします。
 
-DEV時はIndexedDB `gakumasu-local-page-images` のimagesストアからlogin/entryを読みます。active回の画像保存時は生成したJPEGのBlobを直接キャッシュし、切替準備時はStorageのZIPをダウンロード・展開してキャッシュします。local-page-images-updatedイベントで表示を更新。キャッシュは開催回IDやユーザーIDで分離していません。ログアウトで消去する処理もありません。本番モードのキャッシュ読書きは早期returnします。
+PageImageStateのusePageImageはHTTP画像をcache:no-storeでBlobとして再取得し、Imageのloadとdecode完了後にBlob URLを表示します。同じパスに画像を上書きしても古いブラウザー画像キャッシュを暫定表示しません。元のsourceが変わると同じ描画で旧画像を隠し、旧リクエストはabort／破棄、所有するObject URLは解放します。画像設定の確定・画像取得・デコード中はスピナーのみ、失敗はスピナーを停止して静止スケルトンを表示します。role=statusとaria-labelで読み上げ状態を伝え、可視テキストは追加しません。対象はログインのタイトル・回答入力バナー・設定の2プレビューです。
 
-設定画面の保存済みプレビューは選択開催回のZIPをStorageからダウンロードします。一般公開画像と管理画面プレビューの取得経路は別です。サンプル画像はpublic/sampleの静的ファイルを使います。
+DEV時はIndexedDB `gakumasu-local-page-images` のimagesストアのactiveレコードに、開催回ID(eventId)・login/entryのBlobを1組で保存します。旧login/entryの開催回情報を持たない独立キャッシュは読みません。active回の画像保存成功時と受付対象切替成功後に更新し、local-page-images-updatedイベントで表示を更新します。useSiteConfigはこの読込が確定するまでJSON画像も表示せず、有効なローカル画像があれば優先します。レコードがない場合は公開JSONを取得します。本番モードはキャッシュを読み書きしません。ユーザーIDでは分離せずログアウトで消去しない既存仕様は維持します。外部セッションや別タブからの変更をリアルタイム検出する仕組みはありません。
+
+設定画面の保存済みプレビューは選択開催回のZIPをStorageからcache:no-storeでダウンロードします。取得中の公開画像フォールバックは行いません。選択回・保存版のkeyで画像状態を作り直し、開催回選択時の未保存ファイルも同時にリセットします。新規・非active回の画像未登録は空欄、active回で保存パスがない場合のみ公開画像を正式な表示元として解決します。一般公開画像と管理画面プレビューの取得経路は別です。サンプル画像はpublic/sampleの静的ファイルを使います。
 
 ## 実装根拠
 
 [validation.ts](../src/lib/validation.ts)、[imageCompression.ts](../src/lib/imageCompression.ts)、[entryService.ts](../src/lib/entryService.ts)、[ImageFileField.tsx](../src/components/entry/ImageFileField.tsx)、[useReviewImages.ts](../src/hooks/useReviewImages.ts)、[PageImageSettings.tsx](../src/components/settings/PageImageSettings.tsx)、[ImageCropModal.tsx](../src/components/settings/ImageCropModal.tsx)、[siteConfig.ts](../src/lib/siteConfig.ts)、[localPageImages.ts](../src/lib/localPageImages.ts)、[画像保護SQL](../supabase/migrations/20260816000000_protect_reviewed_submission_images.sql)、[ページ画像SQL](../supabase/migrations/20260816040000_add_event_page_images.sql)。
+
+2026-11-23: v8承認後に実装。取得・デコード待ち、旧応答破棄、保存済み画像取得失敗、切替API失敗時のキャッシュ非更新を自動検証。全142テスト・lint・build成功。実ブラウザー描画とIndexedDB/HTTPキャッシュの実操作確認は保留。[検証記録](verification.md)。

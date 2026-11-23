@@ -1,3 +1,4 @@
+import { ImagePlaceholder, usePageImage } from '../components/PageImageState'
 import { useState, type FormEvent, type CSSProperties } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,8 +14,9 @@ import { useLoginLayout } from '../hooks/useLoginLayout'
 
 export function LoginPage() {
   const siteConfig = useSiteConfig()
-  const imageSource = siteAssetUrl(siteConfig.loginImage)
-  const layout = useLoginLayout(imageSource)
+  const image = usePageImage(siteConfig.loginImage ? siteAssetUrl(siteConfig.loginImage) : undefined, siteConfig.failed)
+  const imageSource = image.url
+  const layout = useLoginLayout(imageSource ?? '')
   const { session, loading } = useAuth()
   const navigate = useNavigate()
   const [userId, setUserId] = useState('')
@@ -49,14 +51,16 @@ export function LoginPage() {
       <div className="login-theme-toggle">
         <ThemeToggle />
       </div>
-      <section className="login-panel">
+      <section className="login-panel" aria-busy={image.status === 'loading'}>
+        {image.status !== 'ready' && <div className="login-image-placeholder"><ImagePlaceholder failed={image.status === 'error'} /></div>}
         <img
           ref={layout.imageRef}
           className="login-hero-image"
+          key={imageSource ?? 'loading'}
           src={imageSource}
           onLoad={layout.onImageLoad}
           onError={layout.onImageLoad}
-          style={{ left: layout.imageLeft, width: layout.imageWidth, height: layout.imageHeight, maskImage: imageMask, WebkitMaskImage: imageMask }}
+          style={{ visibility: image.status === 'ready' ? 'visible' : 'hidden', left: layout.imageLeft, width: layout.imageWidth, height: layout.imageHeight, maskImage: imageMask, WebkitMaskImage: imageMask }}
           alt="十王星南と雨夜燕 中野絆星のアイドル強化月間 星々のきらめき"
         />
       </section>

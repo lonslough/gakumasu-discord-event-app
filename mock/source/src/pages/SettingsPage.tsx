@@ -220,7 +220,7 @@ export function SettingsPage() {
               <div className="form-grid">
                 <label>
                   編集する開催回
-                  <select value={selectedEventId} onChange={(event) => { setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
+                  <select value={selectedEventId} onChange={(event) => { setPageImageFiles({ login: null, entry: null }); setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
                     <option value={newEventValue}>新規開催</option>
                   </select>

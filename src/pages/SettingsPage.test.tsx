@@ -10,6 +10,8 @@ afterEach(cleanup)
 const mocks = vi.hoisted(() => ({
   events: [] as EventEdition[],
   upload: vi.fn(),
+  rpc: vi.fn(),
+  cache: vi.fn(),
   compress: vi.fn(),
   updateCounter: 0,
   download: vi.fn(),
@@ -36,7 +38,7 @@ vi.mock('../components/settings/ImageCropModal', () => ({
 }))
 
 vi.mock('../lib/localPageImages', () => ({
-  cacheLocalPageImages: vi.fn(),
+  cacheLocalPageImages: (...args: unknown[]) => mocks.cache(...args),
   cacheLocalPageImagesFromStorage: vi.fn(),
   downloadPageImages: async (path: string) => {
     const { data, error } = await mocks.download(path)
@@ -49,6 +51,7 @@ vi.mock('../lib/localPageImages', () => ({
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
+    rpc: (...args: unknown[]) => mocks.rpc(...args),
     from: (table: string) => {
       if (table !== 'event_editions') throw new Error(`unexpected table: ${table}`)
       return {
@@ -105,6 +108,14 @@ describe('SettingsPage ページ画像', () => {
       event('00000000-0000-0000-0000-000000000001', 'デフォルト開催回', true),
       event('00000000-0000-0000-0000-000000000002', '別の開催回', false),
     ]
+    vi.stubGlobal('Image', class {
+      onload: null | (() => void) = null
+      onerror: null | (() => void) = null
+      set src(_value: string) { queueMicrotask(() => this.onload?.()) }
+      decode() { return Promise.resolve() }
+    })
+    mocks.rpc.mockReset().mockResolvedValue({ error: null })
+    mocks.cache.mockReset().mockResolvedValue(undefined)
     mocks.updateCounter = 0
     mocks.compress.mockReset()
     mocks.compress.mockImplementation(async (file: File) => file)
@@ -177,6 +188,59 @@ describe('SettingsPage ページ画像', () => {
     expect(URL.createObjectURL).toHaveBeenCalledWith(mocks.savedLogin)
     expect(URL.createObjectURL).toHaveBeenCalledWith(mocks.savedEntry)
   })
+  it('回変更直後は両画像を隠し、別の回の遅延応答を破棄する', async () => {
+    mocks.events[0].page_images_path = 'first.zip'
+    mocks.events[1].page_images_path = 'second.zip'
+    let serial = 0
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:preview-${++serial}`)
+    const data = { login: mocks.savedLogin, entry: mocks.savedEntry }
+    let resolve!: (value: unknown) => void
+    mocks.download.mockImplementation((path: string) => path === 'second.zip' ? new Promise(done => { resolve = done }) : Promise.resolve({ data, error: null }))
+    render(<SettingsPage />)
+    await screen.findByAltText('ログインページ画像のプレビュー')
+    const select = screen.getByLabelText('編集する開催回')
+    fireEvent.change(select, { target: { value: mocks.events[1].id } })
+    expect(screen.queryByAltText('ログインページ画像のプレビュー')).toBeNull()
+    expect(screen.queryByAltText('回答入力画面画像のプレビュー')).toBeNull()
+    expect(screen.getAllByRole('status', { name: '画像を読み込み中' })).toHaveLength(2)
+    fireEvent.change(select, { target: { value: mocks.events[0].id } })
+    const image = await screen.findByAltText('ログインページ画像のプレビュー')
+    const source = image.getAttribute('src')
+    await act(async () => resolve({ data, error: null }))
+    expect(screen.getByAltText('ログインページ画像のプレビュー')).toHaveAttribute('src', source)
+  })
+
+  it('保存済み画像の取得失敗で公開画像を代用せずスケルトンを出す', async () => {
+    mocks.events[0].page_images_path = 'broken.zip'
+    mocks.download.mockRejectedValue(new Error('offline'))
+    render(<SettingsPage />)
+    await screen.findByText('保存済みページ画像の読み込みに失敗しました。')
+    expect(screen.getAllByRole('status', { name: '画像を表示できません' })).toHaveLength(2)
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(screen.queryByRole('status', { name: '画像を読み込み中' })).toBeNull()
+  })
+
+  it('受付対象切替が失敗した場合は別開催回のキャッシュを書き込まない', async () => {
+    mocks.events[1].page_images_path = 'second.zip'
+    mocks.rpc.mockResolvedValue({ error: new Error('activation failed') })
+    render(<SettingsPage />)
+    fireEvent.change(await screen.findByLabelText('編集する開催回'), { target: { value: mocks.events[1].id } })
+    fireEvent.click(screen.getByRole('button', { name: 'この開催回を回答受付対象にする' }))
+    await screen.findByText('回答受付対象を切り替えられませんでした。')
+    expect(mocks.rpc).toHaveBeenCalledWith('set_active_event', { p_event_id: mocks.events[1].id })
+    expect(mocks.cache).not.toHaveBeenCalled()
+  })
+
+  it('受付対象切替の成功後に開催回ID付きで画像ペアをキャッシュする', async () => {
+    mocks.events[1].page_images_path = 'second.zip'
+    render(<SettingsPage />)
+    fireEvent.change(await screen.findByLabelText('編集する開催回'), { target: { value: mocks.events[1].id } })
+    fireEvent.click(screen.getByRole('button', { name: 'この開催回を回答受付対象にする' }))
+    await screen.findByText('回答受付対象の開催回を切り替えました。')
+    expect(mocks.cache).toHaveBeenCalledWith(mocks.savedLogin, mocks.savedEntry, mocks.events[1].id)
+    expect(mocks.cache.mock.invocationCallOrder[0]).toBeGreaterThan(mocks.rpc.mock.invocationCallOrder[0])
+  })
+
 })
 
 describe('開催回のランキング公開設定', () => {
@@ -259,6 +323,14 @@ describe('保存済みページ画像の片側更新', () => {
   beforeEach(() => {
     mocks.events = [event('current', '画像設定の検査', false)]
     mocks.events[0].page_images_path = 'current/page-images.zip'
+    vi.stubGlobal('Image', class {
+      onload: null | (() => void) = null
+      onerror: null | (() => void) = null
+      set src(_value: string) { queueMicrotask(() => this.onload?.()) }
+      decode() { return Promise.resolve() }
+    })
+    mocks.rpc.mockReset().mockResolvedValue({ error: null })
+    mocks.cache.mockReset().mockResolvedValue(undefined)
     mocks.updateCounter = 0
     mocks.compress.mockReset()
     mocks.compress.mockImplementation(async (file: File) => file)

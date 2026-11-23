@@ -38,13 +38,13 @@ session、ルール長、名称、2キャラクター、期間、画像ペアを
 
 ## 画像調整モーダル
 
-選択時に圧縮し、canvas上で拡大率・位置を調整して確定します。保存済み画像はStorage ZIPからプレビュー。詳細な比率・圧縮・キャッシュは画像設計を参照。
+選択時に圧縮し、canvas上で拡大率・位置を調整して確定します。保存済み画像はStorage ZIPからプレビュー。開催回変更直後に旧画像を隠し、取得・デコード完了までは両欄にスピナーだけ表示します。失敗時はスケルトンと既存の保存済み画像取得エラー通知を表示し、公開画像を一時的に代用しません。詳細な比率・圧縮・キャッシュは画像設計を参照。
 
 ## 受付対象切替
 
-新規回または既にactiveな回では切替ボタンdisabled。保存済みpage_images_pathが必須で、画面内の未保存画像では代替しません。DEVはStorage画像をローカルキャッシュ後、set_active_event RPCを呼びます。本番ビルドはactivate-event Functionを呼びます。
+新規回または既にactiveな回では切替ボタンdisabled。保存済みpage_images_pathが必須で、画面内の未保存画像では代替しません。DEVはStorage画像を先に取得し、set_active_event RPCが成功した後、開催回IDと画像ペアをローカルキャッシュへ反映します。本番ビルドはactivate-event Functionを呼びます。
 
-成功後に開催回を再取得して成功通知。画像取得失敗、API失敗は固定日本語文言。DEVのキャッシュ更新はRPCより先のため、切替失敗時にキャッシュだけが変わる経路があります。切替専用の処理中ロックや確認モーダルはありません。
+成功後に開催回を再取得して成功通知。画像取得失敗、API失敗は固定日本語文言。切替API失敗時は別開催回のキャッシュへ更新しません。切替中は開催回選択と受付対象切替ボタンを無効化し、二重操作を防ぎます。確認モーダルはありません。
 
 設定保存だけではactiveは変えません。本番の画像公開はWorkflow完了後です。active回の画像保存だけでは再デプロイは始まりません。
 
@@ -60,3 +60,5 @@ session、ルール長、名称、2キャラクター、期間、画像ペアを
 [SettingsPage.tsx](../../src/pages/SettingsPage.tsx)、[RulesEditorModal.tsx](../../src/components/settings/RulesEditorModal.tsx)、[PageImageSettings.tsx](../../src/components/settings/PageImageSettings.tsx)、[ImageCropModal.tsx](../../src/components/settings/ImageCropModal.tsx)、[characters.ts](../../src/lib/characters.ts)、[localPageImages.ts](../../src/lib/localPageImages.ts)。
 
 2026-11-23: 公開設定を含む[設定テスト](../../src/pages/SettingsPage.test.tsx)11件成功。ルートはadmin限定を維持し、共有Headerから一般/管理とも[ランキング](admin-responses.md)へ移動できます。DB・実HTTPで公開保存、一般更新拒否、解除後の取得拒否を確認。実ブラウザーの手動操作・画像操作は保留。[検証記録](../verification.md)。
+
+2026-11-23画像ローディング: 設定テスト15件成功。切替直後の旧画像非表示、遅延応答破棄、失敗スケルトン、受付対象切替成功後だけのキャッシュ更新を追加確認。実ブラウザー描画・Storage保存後の再読込は保留。[検証記録](../verification.md)。

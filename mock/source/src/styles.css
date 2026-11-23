@@ -1976,3 +1976,15 @@ html .login-page .login-panel {
 }
 
 .modal-wide:has(.image-crop-workspace.with-guide) { width: min(1240px, 100%); }
+
+/* Review v8: image resolution and decode never expose a previous image. */
+.page-image-frame { position: relative; overflow: hidden; }
+.page-image-placeholder { display: grid; place-items: center; width: 100%; height: 100%; min-height: 120px; background: var(--bg); }
+.page-image-placeholder .spinner { margin: 0; }
+.page-image-skeleton { background: linear-gradient(110deg, var(--bg) 20%, rgba(139,124,255,.16) 45%, var(--bg) 70%); border: 1px solid rgba(139,124,255,.18); border-radius: 12px; }
+.page-image-frame.page-image-preview { aspect-ratio: 16 / 5; height: auto; }
+.page-image-frame.page-image-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.login-image-placeholder { position: absolute; inset: 0 45% 0 0; }
+.mock-image-review { position: fixed; bottom: 8px; left: 8px; z-index: 200; max-width: min(360px, calc(100vw - 16px)); background: var(--bg); border: 1px solid #8b7cff; border-radius: 10px; padding: 10px; font-size: 12px; }
+.mock-image-review p { margin: 8px 0 0; }
+@media (max-width: 900px) { .login-image-placeholder { inset: 0 0 55% 0; } }
