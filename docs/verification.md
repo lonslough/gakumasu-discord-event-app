@@ -131,3 +131,7 @@ Actionsのdb push --linkedがIPv6へ接続して失敗するため、Management 
 - 実ブラウザーは再接続インベントリーでもbrowser access host unavailable。前段のネイティブChrome接続はapproval timed out。PC/スマホ・ライト/ダークの実描画、実際のHTTPキャッシュ・IndexedDB・Storage操作、保存後再読込、全画面手動回帰は未確認。自動検査成功を手動受入テスト済みとは扱いません。
 
 本体の確認場所はローカル開発 http://localhost:5173 。専用の本実装確認にはログイン、回答入力、設定を使用します。再開に必要なのは操作可能なブラウザー接続です。push・デプロイ・本番データ変更は実施していません。
+
+### siteConfigテストのCI配信パス修正
+
+2026-11-23: GitHub Actions相当（GITHUB_ACTIONS=true、GITHUB_REPOSITORY=lonslough/gakumasu-discord-event-app）で、siteConfig.test.tsxの期待URLが/site-config.jsonに固定されていた失敗を再現。BASE_URLが/の場合と/gakumasu-discord-event-app/の場合をパラメーター化して検査するよう修正。通常ローカルで対象5件、Node22のCI相当設定で全143件成功。本体の取得処理・表示仕様は変更していません。

@@ -26,10 +26,11 @@ describe('useSiteConfig', () => {
     expect(result.current.loading).toBe(false)
     expect(fetch).not.toHaveBeenCalled()
   })
-  it('キャッシュなしならJSONを取得し、取得失敗は画像を非表示にする', async () => {
+  it.each(['/', '/gakumasu-discord-event-app/'])('BASE_URL=%sでJSONを取得し、取得失敗は画像を非表示にする', async (baseUrl) => {
+    vi.stubEnv('BASE_URL', baseUrl)
     const { result } = renderHook(() => useSiteConfig())
     await waitFor(() => expect(result.current.loginImage).toBe(config.loginImage))
-    expect(fetch).toHaveBeenCalledWith('/site-config.json', expect.objectContaining({ cache: 'no-store' }))
+    expect(fetch).toHaveBeenCalledWith(`${baseUrl}site-config.json`, expect.objectContaining({ cache: 'no-store' }))
     vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'))
     await act(async () => window.dispatchEvent(new Event('local-page-images-updated')))
     await waitFor(() => expect(result.current.failed).toBe(true))
