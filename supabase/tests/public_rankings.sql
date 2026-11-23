@@ -63,8 +63,8 @@ select set_config('request.jwt.claim.sub', 'ae000000-0000-0000-0000-000000000001
 
 select is(jsonb_array_length(public.list_public_ranking_events()), 2, 'list contains only published editions');
 select is(public.list_public_ranking_events()->0->>'name', 'Published empty', 'event list ordered newest first');
-select is((select count(*)::integer from jsonb_object_keys(public.list_public_ranking_events()->0)), 5, 'event list returns exactly five display fields');
-select ok((public.list_public_ranking_events()->0) ?& array['id','name','is_active','character_options','created_at'], 'event list includes required display fields only');
+select is((select count(*)::integer from jsonb_object_keys(public.list_public_ranking_events()->0)), 6, 'event list returns six display fields including division settings');
+select ok((public.list_public_ranking_events()->0) ?& array['id','name','is_active','character_options','division_settings','created_at'], 'event list includes required display fields only');
 select is(public.get_public_rankings('ae000000-0000-0000-0001-000000000003'), '[]'::jsonb, 'published edition with no submissions returns empty array');
 select is(jsonb_array_length(public.get_public_rankings('ae000000-0000-0000-0001-000000000002')), 12, 'top ten plus other character and division');
 select is((select count(*)::integer from jsonb_array_elements(public.get_public_rankings('ae000000-0000-0000-0001-000000000002')) r where r->>'category'='sena' and r->>'entry_division'='open'), 10, 'only top ten per category and division');

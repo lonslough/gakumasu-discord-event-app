@@ -10,7 +10,7 @@ JPEG/PNGは選択時にObject URLでプレビュー。HEIC/HEIFは選択時プ�
 
 submission-imagesバケットはprivate、上限10MiB。新規パスは `auth.uid()/score/UUID.jpg`、`beginner-proof`、`login-days-proof`。上書きせず新UUIDを生成します。旧deckパスはDB・Storage互換用に残ります。
 
-保存順序は結果画像→初心者PID画像→日数画像を必要時アップロード→submissionsを `(event_id,user_id)` でupsert→不要になった旧画像を削除。DBまでの失敗時は今回アップロードした画像の削除を試みます。削除レスポンスのerrorを個別検査する再試行処理はありません。
+保存順序は結果画像→選択部門で証明必須の場合にPID画像→日数画像を必要時アップロード→submissionsを `(event_id,user_id)` でupsert→不要になった旧画像を削除。DBまでの失敗時は今回アップロードした画像の削除を試みます。削除レスポンスのerrorを個別検査する再試行処理はありません。
 
 RLSは本人・adminの閲覧、受付期間中の本人の新規保存を許可。Storage UPDATEポリシーは削除済みです。DELETEは受付期間中、本人配下、本人のどの回答行からも参照されないオブジェクトに限定します。受付終了時等には後片付けが失敗して孤立画像が残り得ます。
 
@@ -53,3 +53,6 @@ DEV時はIndexedDB `gakumasu-local-page-images` のimagesストアのactiveレ�
 [validation.ts](../src/lib/validation.ts)、[imageCompression.ts](../src/lib/imageCompression.ts)、[entryService.ts](../src/lib/entryService.ts)、[ImageFileField.tsx](../src/components/entry/ImageFileField.tsx)、[useReviewImages.ts](../src/hooks/useReviewImages.ts)、[PageImageSettings.tsx](../src/components/settings/PageImageSettings.tsx)、[ImageCropModal.tsx](../src/components/settings/ImageCropModal.tsx)、[siteConfig.ts](../src/lib/siteConfig.ts)、[localPageImages.ts](../src/lib/localPageImages.ts)、[画像保護SQL](../supabase/migrations/20260816000000_protect_reviewed_submission_images.sql)、[ページ画像SQL](../supabase/migrations/20260816040000_add_event_page_images.sql)。
 
 2026-11-23: v8承認後に実装。取得・デコード待ち、旧応答破棄、保存済み画像取得失敗、切替API失敗時のキャッシュ非更新を自動検証。全142テスト・lint・build成功。実ブラウザー描画とIndexedDB/HTTPキャッシュの実操作確認は保留。[検証記録](verification.md)。
+
+
+2026-11-24: 証明画像の必須判定は初心者という固定IDではなく開催回部門のrequiresProofで決定します。保存先のbeginner-proof/login-days-proofという互換パス名と既存Storageポリシー・圧縮・レビュー保護は維持。カスタム証明部門の再保存でも既存2パスを保持します。[回答入力](screens/entry.md)。

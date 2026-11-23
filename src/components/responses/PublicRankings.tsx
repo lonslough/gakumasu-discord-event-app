@@ -1,9 +1,9 @@
+import { divisionIds } from '../../lib/divisions'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Category, EntryDivision, PublicRankingEntry, PublicRankingEvent } from '../../types'
 import { ResponseRankings, type RankingDisplayRow } from './ResponseRankings'
 
-const divisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 export function PublicRankings() {
   const [events, setEvents] = useState<PublicRankingEvent[]>([])
@@ -53,7 +53,7 @@ export function PublicRankings() {
 
   const rankings = useMemo(() => Object.fromEntries(
     (selected?.character_options ?? []).map((character) => [character.id, Object.fromEntries(
-      divisions.map((division) => [division, (result?.eventId === selectedEventId ? result.rows : [])
+      divisionIds(selected?.division_settings).map((division) => [division, (result?.eventId === selectedEventId ? result.rows : [])
         .filter((row) => row.category === character.id && row.entry_division === division)
         .sort((a, b) => a.rank - b.rank)
         .map((row) => ({ id: `${row.category}:${row.entry_division}:${row.rank}`, discord_username: row.discord_username, producer_name: row.producer_name, review: { confirmed_score: row.confirmed_score } })),
@@ -73,7 +73,7 @@ export function PublicRankings() {
       </section>
       {rankingLoading && <div className="spinner" aria-label="ランキングを読み込み中" />}
       {!rankingLoading && result?.error && <div className="notice error" role="alert">{result.error}</div>}
-      {!rankingLoading && result && !result.error && <ResponseRankings key={selectedEventId} rankings={rankings} characters={selected.character_options} />}
+      {!rankingLoading && result && !result.error && <ResponseRankings key={selectedEventId} rankings={rankings} characters={selected.character_options} divisionSettings={selected.division_settings} />}
     </>}
   </main>
 }

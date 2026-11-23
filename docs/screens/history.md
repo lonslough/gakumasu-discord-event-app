@@ -58,3 +58,11 @@
 [HistoryPage.tsx](../../src/pages/HistoryPage.tsx)、[HistoryImage.tsx](../../src/components/history/HistoryImage.tsx)、[Routes.tsx](../../src/components/Routes.tsx)、[Header.tsx](../../src/components/Header.tsx)、[types.ts](../../src/types.ts)、[履歴RPC](../../supabase/migrations/20261006000000_add_submission_history.sql)、[DB検証](../../supabase/tests/submission_history.sql)。
 
 2026-11-23 順位表示（モックv10承認後）: [追加RPC](../../supabase/migrations/20261123010000_add_submission_history_ranks.sql)でrankを返します。本人の1〜3位・4位以下・0点・順位なしと状態列非表示を履歴18テスト、得点順/同点/分類/公開/本人限定を履歴DB35項目で確認。全体UI152件・DB109件・実HTTP37項目・lint/build/DB lint成功。PC/スマートフォン実描画と全画面手動回帰はChrome利用拒否により保留。[検証記録](../verification.md)。
+
+
+## 回別部門名と証明画像（2026-11-24）
+
+本人履歴RPCが開催回のdivision_settingsを返し、各行の部門IDから現在の名称を表示します。名称変更は保存済み回答にも反映し、他回は独立。カスタム部門も本人順位を表示します。提出画像モーダルはrequiresProofまたは既存証明パスに応じて証明欄を表示。本人限定と管理者メモ非公開は維持。[DB](../data-model.md) / [API](../api.md)。
+
+
+2026-11-24 v13全画面再照合: 本人履歴と提出画像モーダル・順位表示を照合。今回の自動選択による履歴RPCや表示の変更なし。 全178テスト・lint/build成功。実ブラウザーでの手動操作・描画は未確認。[検証記録](../verification.md)。

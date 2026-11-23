@@ -1,3 +1,5 @@
+import { copyDivisions, divisionIds, requiresDivisionProof } from '../../lib/divisions'
+import type { DivisionSettings } from '../../types'
 import type { EntryValues } from '../../lib/validation'
 import type { CharacterOption, Submission } from '../../types'
 import { ImageFileField } from './ImageFileField'
@@ -6,6 +8,7 @@ interface EntryFormFieldsProps {
   values: EntryValues
   errors: Record<string, string>
   existing: Submission | null
+  divisionSettings?: DivisionSettings
   characters: CharacterOption[]
   onChange: (patch: Partial<EntryValues>) => void
 }
@@ -117,12 +120,9 @@ function DivisionSection({
   errors,
   existing,
   onChange,
-}: Pick<EntryFormFieldsProps, 'values' | 'errors' | 'existing' | 'onChange'>) {
-  const divisions = [
-    ['open', '無差別部門', '参加条件なし'],
-    ['switch_off', 'スイッチカードOFF部門', 'スイッチカードOFF必須'],
-    ['beginner', '初心者部門', 'スイッチカードOFF必須'],
-  ] as const
+  divisionSettings,
+}: Pick<EntryFormFieldsProps, 'values' | 'errors' | 'existing' | 'onChange' | 'divisionSettings'>) {
+  const divisions = copyDivisions(divisionSettings)
 
   return (
     <section className="card form-section">
@@ -138,7 +138,7 @@ function DivisionSection({
             <p className="help">応募部門は回答後に変更できません。</p>
           )}
           <div className="radio-cards">
-            {divisions.map(([value, label, description]) => (
+            {divisionIds(divisions).map((value) => (
               <label
                 className={
                   values.entryDivision === value ? 'selected' : ''
@@ -154,15 +154,15 @@ function DivisionSection({
                   onChange={() => onChange({ entryDivision: value })}
                 />
                 <span>
-                  <strong>{label}</strong>
-                  <small>{description}</small>
+                  <strong>{divisions[value].name}</strong>
+                  {divisions[value].description && <small>{divisions[value].description}</small>}
                 </span>
               </label>
             ))}
           </div>
-          {values.entryDivision === 'beginner' && (
+          {divisions[values.entryDivision]?.eligibility && (
             <p className="help">
-              参加条件：イベント参加時点で「PLv60未満」または「ログイン日数合計90日以下」の方
+              {divisions[values.entryDivision]?.eligibility}
             </p>
           )}
           {errors.entryDivision && (
@@ -219,7 +219,8 @@ function ImagesSection({
   errors,
   existing,
   onChange,
-}: Pick<EntryFormFieldsProps, 'values' | 'errors' | 'existing' | 'onChange'>) {
+  divisionSettings,
+}: Pick<EntryFormFieldsProps, 'values' | 'errors' | 'existing' | 'onChange' | 'divisionSettings'>) {
   const existingImage = (path: string | null | undefined) =>
     path ? { name: basename(path), path } : null
 
@@ -245,7 +246,7 @@ function ImagesSection({
           sampleSrc={`${import.meta.env.BASE_URL}sample/score_sample.png`}
           sampleAlt="評価値・最終所持スキルカード画像の見本"
         />
-        {values.entryDivision === 'beginner' && (
+        {requiresDivisionProof(divisionSettings, values.entryDivision) && (
           <div className="evidence-fields">
             <ImageUploadGroup
               title="PID・Pレベル確認画像"
