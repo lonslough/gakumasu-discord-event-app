@@ -3,9 +3,11 @@ import {
   ReviewModal,
 } from '../components/responses/ResponseModals'
 import { ResponseRankings } from '../components/responses/ResponseRankings'
+import { PublicRankings } from '../components/responses/PublicRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
-import { entryDivisionName, statusName } from '../components/responses/labels'
+import { divisionLabel, divisionIds } from '../lib/divisions'
+import { statusName } from '../components/responses/labels'
 import { useAuth } from '../contexts/AuthContext'
 import { useReviewImages } from '../hooks/useReviewImages'
 import {
@@ -31,15 +33,21 @@ import type {
   VerificationStatus,
 } from '../types'
 
-const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 export function ResponsesPage() {
-  const { session } = useAuth()
+  const { profile, loading } = useAuth()
+  if (loading || !profile) return <main className="center-page"><div className="spinner" aria-label="読み込み中" /></main>
+  return profile.role === 'admin' ? <AdminResponsesView /> : <PublicRankings />
+}
+
+function AdminResponsesView() {
+  const { session, profile } = useAuth()
   const [rows, setRows] = useState<AdminSubmission[]>([])
   const [registered, setRegistered] = useState(0)
   const [characters, setCharacters] = useState<CharacterOption[]>(defaultCharacterOptions)
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  const divisionSettings = events.find(event => event.id === selectedEventId)?.division_settings
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -94,14 +102,14 @@ export function ResponsesPage() {
         characters.map((character) => [
           character.id,
           Object.fromEntries(
-            rankingDivisions.map((division) => [
+            divisionIds(divisionSettings).map((division) => [
               division,
               rankedByCategoryAndDivision(rows, character.id, division),
             ]),
           ) as Record<EntryDivision, AdminSubmission[]>,
         ]),
       ) as Record<Category, Record<EntryDivision, AdminSubmission[]>>,
-    [rows, characters],
+    [rows, characters, divisionSettings],
   )
   const stats = useMemo(
     () => getResponseStats(rows, registered, characters.map((character) => character.id)),
@@ -118,7 +126,7 @@ export function ResponsesPage() {
   }
 
   const saveReview = async () => {
-    if (!editing || !session) return
+    if (!editing || !session || profile?.role !== 'admin') return
     const canEditVerification = hasResultImage(editing)
     if (canEditVerification && !isValidConfirmedScore(score))
       return setError('評価値は0以上の整数で入力してください。')
@@ -156,6 +164,7 @@ export function ResponsesPage() {
   }
 
   const downloadCsv = () => {
+    if (profile?.role !== 'admin') return
     const header = [
       'ユーザーID',
       'サーバー内ユーザーネーム',
@@ -174,7 +183,7 @@ export function ResponsesPage() {
         row.discord_username,
         row.producer_name,
         characterLabel(characters, row.category),
-        entryDivisionName[row.entry_division],
+        divisionLabel(divisionSettings, row.entry_division),
         row.review?.confirmed_score,
         statusName[row.review?.verification_status ?? 'pending'],
         row.review?.admin_note,
@@ -200,7 +209,7 @@ export function ResponsesPage() {
       <div className="page-title">
         <div>
           <p className="eyebrow">RESULTS & VERIFICATION</p>
-          <h1>回答結果</h1>
+          <h1>ランキング</h1>
           <p>提出内容の確認、評価値の登録、集計を行います。</p>
         </div>
         <button className="button primary" onClick={downloadCsv}>
@@ -214,8 +223,9 @@ export function ResponsesPage() {
 
       {error && <div className="notice error">{error}</div>}
       <ResponseStats registered={registered} stats={stats} characters={characters} />
-      <ResponseRankings rankings={rankings} characters={characters} />
+      <ResponseRankings rankings={rankings} characters={characters} divisionSettings={divisionSettings} />
       <ResponsesTable
+        divisionSettings={divisionSettings}
         rows={filtered}
         characters={characters}
         verifiedCount={stats.verified}

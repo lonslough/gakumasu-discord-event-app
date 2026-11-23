@@ -130,6 +130,15 @@ Compose内のSupabase CLIからテスト用コンテナを起動すると、Dock
 
 ## MockのPages配信
 
+2026-11-23: 公開ランキングは[追加migration](../supabase/migrations/20261123000000_add_public_rankings.sql)をDBへ適用する必要があります。既定は全回非公開で、設定画面で管理者が明示保存します。既存の本人用ポイント・履歴・Storage権限は変わりません。Supabase Workflowは `supabase test db supabase/tests/public_rankings.sql` も実行します。ローカルでは追加migrationのみ適用しresetを行わず、DB lint、公開ランキング38件＋既存49件、画面等130テスト、実HTTP28項目、lint/buildを確認しました。PC/スマホと全画面のブラウザー手動検証は利用拒否により保留。[検証記録](verification.md)。
+
 `npm run build` は本番アプリのビルド後に [package-mock.mjs](../scripts/package-mock.mjs) を実行し、mock/index.html・app.js・app.css・images/・sample/だけをdist/mock/へコピーします。mock/source、node_modules、READMEや設計書はコピーしません。Workflowではmock/sourceの依存をロックファイルで導入して `npm run build:mock` を先に実行します。
 
 公開後は既存Pagesルートの末尾へ `/mock` を直接入力します。本番UIへリンク・メニュー・ボタンは追加しません。ディレクトリーのindex.htmlが入口、mock内はハッシュルーティングです。mockの認証・データ処理はメモリー内のままで、本番Supabaseへ接続しません。
+
+
+## 部門設定migrationと検査（2026-11-24）
+
+20261124000000_add_configurable_divisions.sqlを追加。既存migrationは改変せず、ローカルにはmigration up --localで追加分のみ適用、db resetは実施していません。新しいフロントの保存機能にはこのmigrationが必要です。本番への適用/デプロイは未実施。
+
+Supabase Workflowに[部門DBテスト](../supabase/tests/divisions.sql)を追加。既存4本を合わせ155項目、Node22の全173テスト、lint/build、DB lintが成功。ローカルAPIと競合も別途確認。実ブラウザー操作は接続制限により保留。[検証記録](verification.md)。

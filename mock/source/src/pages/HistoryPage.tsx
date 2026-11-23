@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { HistoryImage } from '../components/history/HistoryImage'
 import { Modal } from '../components/Modal'
-import { entryDivisionName, statusName } from '../components/responses/labels'
+import { divisionLabel, requiresDivisionProof } from '../lib/divisions'
 import { characterLabel, characterRoster } from '../lib/characters'
 import { supabase } from '../lib/supabase'
 import type { SubmissionHistory } from '../types'
@@ -16,6 +16,10 @@ function HistoryRow({ row, onSelect }: { row: SubmissionHistory; onSelect: () =>
   if (row.verification_status === 'verified') {
     scoreLabel = row.confirmed_score === null ? '得点未登録' : row.confirmed_score.toLocaleString('ja-JP')
   }
+  let rankLabel = '—'
+  if (row.verification_status === 'verified' && row.confirmed_score !== null && row.rank !== null) {
+    rankLabel = row.rank <= 3 ? `${row.rank}位` : 'ランク外'
+  }
   return (
     <tr className="history-row" onClick={onSelect}>
       <th scope="row">
@@ -24,12 +28,12 @@ function HistoryRow({ row, onSelect }: { row: SubmissionHistory; onSelect: () =>
           onClick={event => { event.stopPropagation(); onSelect() }}>{row.event_name}</button>
         {row.is_active && <span className="history-current">現在の開催回</span>}
       </th>
-      <td><span className={`badge ${row.verification_status}`}>{statusName[row.verification_status]}</span></td>
       <td className="history-score-cell">{scoreLabel}</td>
+      <td className="history-score-cell">{rankLabel}</td>
       <td>{row.discord_username}</td>
       <td>{row.producer_name}</td>
       <td>{characterLabel([...row.character_options, ...characterRoster], row.category)}</td>
-      <td>{entryDivisionName[row.entry_division]}</td>
+      <td>{divisionLabel(row.division_settings, row.entry_division)}</td>
       <td>{dateLabel(row.created_at)}</td>
       <td>{dateLabel(row.updated_at)}</td>
     </tr>
@@ -42,9 +46,9 @@ function HistoryImages({ row }: { row: SubmissionHistory }) {
         <HistoryImage initiallyOpen path={row.score_image_path}
           label={row.deck_image_path ? '評価値（旧形式）' : '評価値・最終所持スキルカード'} />
         {row.deck_image_path && <HistoryImage initiallyOpen path={row.deck_image_path} label="デッキ（旧形式）" />}
-        {(row.entry_division === 'beginner' || row.beginner_proof_image_path) &&
+        {(requiresDivisionProof(row.division_settings, row.entry_division) || row.beginner_proof_image_path) &&
           <HistoryImage initiallyOpen path={row.beginner_proof_image_path} label="PID・Pレベル" />}
-        {(row.entry_division === 'beginner' || row.login_days_proof_image_path) &&
+        {(requiresDivisionProof(row.division_settings, row.entry_division) || row.login_days_proof_image_path) &&
           <HistoryImage initiallyOpen path={row.login_days_proof_image_path} label="総出席日数" />}
       </div>
   )
@@ -99,7 +103,7 @@ export function HistoryPage() {
         role="region" aria-label="参加履歴一覧" tabIndex={0}>
         <table className="history-table" aria-label="参加履歴">
           <thead><tr>
-            {['開催回', '確認状態', '確認済み得点', 'サーバー内ユーザーネーム',
+            {['開催回', '確認済み得点', '順位', 'サーバー内ユーザーネーム',
               'ゲーム内プロデューサーネーム', '育成キャラクター', '応募部門', '初回提出日時', '最終更新日時']
               .map(label => <th key={label} scope="col">{label}</th>)}
           </tr></thead>

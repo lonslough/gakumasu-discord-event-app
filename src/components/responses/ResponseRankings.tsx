@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react'
-import type { AdminSubmission, Category, CharacterOption, EntryDivision } from '../../types'
-import { entryDivisionName } from './labels'
+import type { Category, CharacterOption, EntryDivision } from '../../types'
+import type { DivisionSettings } from '../../types'
+import { divisionLabel, divisionIds } from '../../lib/divisions'
+
+export interface RankingDisplayRow {
+  id: string
+  discord_username: string
+  producer_name: string
+  review: { confirmed_score: number | null } | null
+}
 
 interface ResponseRankingsProps {
-  rankings: Record<Category, Record<EntryDivision, AdminSubmission[]>>
+  rankings: Record<Category, Record<EntryDivision, RankingDisplayRow[]>>
+  divisionSettings?: DivisionSettings
   characters: CharacterOption[]
 }
 
-const divisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
-export function ResponseRankings({ rankings, characters }: ResponseRankingsProps) {
+export function ResponseRankings({ rankings, characters, divisionSettings }: ResponseRankingsProps) {
   const [selectedCategory, setSelectedCategory] = useState<Category>(characters[0]?.id ?? '')
   useEffect(() => {
     if (!characters.some((character) => character.id === selectedCategory))
@@ -40,11 +48,11 @@ export function ResponseRankings({ rankings, characters }: ResponseRankingsProps
         <h2>{characters.find((character) => character.id === selectedCategory)?.name}ランキング</h2>
       </div>
       <div className="ranking-divisions">
-        {divisions.map((division) => {
-          const rows = rankings[selectedCategory][division]
+        {divisionIds(divisionSettings).map((division) => {
+          const rows = rankings[selectedCategory][division] ?? []
           return (
             <section className="division-ranking" key={division}>
-              <h3>{entryDivisionName[division]}</h3>
+              <h3>{divisionLabel(divisionSettings, division)}</h3>
               {rows.length ? (
                 <ol>
                   {rows.slice(0, 10).map((row, index) => (

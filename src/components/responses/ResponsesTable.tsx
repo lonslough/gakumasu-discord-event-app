@@ -5,10 +5,13 @@ import type {
 } from '../../lib/adminResponses'
 import { characterLabel } from '../../lib/characters'
 import type { AdminSubmission, CharacterOption } from '../../types'
-import { entryDivisionName, statusName } from './labels'
+import type { DivisionSettings } from '../../types'
+import { divisionLabel } from '../../lib/divisions'
+import { statusName } from './labels'
 
 interface ResponsesTableProps {
   rows: AdminSubmission[]
+  divisionSettings?: DivisionSettings
   characters: CharacterOption[]
   verifiedCount: number
   search: string
@@ -25,6 +28,7 @@ interface ResponsesTableProps {
 export function ResponsesTable({
   rows,
   characters,
+  divisionSettings,
   verifiedCount,
   search,
   categoryFilter,
@@ -115,7 +119,7 @@ export function ResponsesTable({
                     </small>
                   </td>
                   <td>{characterLabel(characters, row.category)}</td>
-                  <td>{entryDivisionName[row.entry_division]}</td>
+                  <td>{divisionLabel(divisionSettings, row.entry_division)}</td>
                   <td className="score">
                     {row.review?.confirmed_score?.toLocaleString() ?? '—'}
                   </td>

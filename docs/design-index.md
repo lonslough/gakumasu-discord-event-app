@@ -39,7 +39,7 @@ docs/
 | `/entry` | ログインユーザー（管理者も可） | [回答入力](screens/entry.md) |
 | `/history` | ログインユーザー（管理者も本人分のみ） | [参加履歴](screens/history.md) |
 | `/admin/users` | 管理者 | [ユーザー登録](screens/admin-users.md) |
-| `/admin/responses` | 管理者 | [回答結果](screens/admin-responses.md) |
+| `/admin/responses` | ログインユーザー。一般は公開回のランキングのみ、管理者は全回と既存管理機能 | [ランキング（旧回答結果）](screens/admin-responses.md) |
 | `/admin/settings` | 管理者 | [設定](screens/admin-settings.md) |
 | `/admin/rules` | 管理者。設定画面へ転送 | [設定](screens/admin-settings.md) |
 | `*` | `/entry` へ転送後、認証ガードを適用 | [共通ルーティング](architecture.md) |
@@ -50,6 +50,8 @@ docs/
 
 ## 開発スキルからの参照
 
+2026-11-23: モックv7承認後に公開ランキングを実装。全6画面・所属モーダル・旧admin/rulesと未定義URLを再照合し、ランキングだけをAdminOnlyの外へ移しました。公開設定は設定画面内、別ルート・モーダルは追加していません。UIテスト130件、DB87件、実HTTP28項目、lint/build成功。ブラウザー操作の利用拒否により全画面の手動回帰・PC/スマートフォン描画は保留です。[検証記録](verification.md)を参照してください。
+
 [gakumasu-dev](../.agents/skills/gakumasu-dev/SKILL.md) はこの索引から共通設計と対象画面を読み、データ変更時はdata-model.mdとapi.md、画像変更時はimages.mdを参照します。現在の配置はスキル内の正本設計書規約に一致します。
 
 変更時は実装→該当画面→共通設計→索引の整合を確認し、同じ仕様を別の正本に複製しません。各文書の「実装根拠」から実ファイルへたどれます。一時仕様書・一時設計書はdocsへ混在させません。文書だけを整備する依頼では、アプリの新機能実装・デプロイを開始する必要はありません。
@@ -59,3 +61,13 @@ docs/
 ## 永続化しないフロントエンドmock
 
 main由来の独立した画面確認用mockは [mock/README.md](../mock/README.md) を参照してください。全6画面との対応・mock固有の差分・検証保留事項は [mock/DESIGN.md](../mock/DESIGN.md) にまとめています。
+
+2026-11-23: モックv8承認後に、設定・ログイン・回答入力の画像ローディングと旧画像の一瞬の表示防止を実装。全6画面・所属モーダル・旧URL・未定義URLの対応を再照合し、ルート追加・変更はありません。Node22で全142テスト・lint・build成功。実ブラウザー接続不能のためPC/スマホ・テーマ別描画と手動回帰は保留。[画像設計](images.md)と[検証記録](verification.md)を参照してください。
+
+2026-11-23: モックv10承認後に[参加履歴](screens/history.md)へ本人順位を追加し確認状態列を削除。非公開回でも本人順位を表示。全6画面・所属モーダル・旧/admin/rules転送・未定義URLの対応を再照合し、ルート変更なし。UI152件、DB109項目、HTTP37項目、lint/build/DB lint成功。実ブラウザー手動操作・PC/スマートフォン描画は利用拒否により保留。[検証記録](verification.md)。
+
+
+2026-11-24: モックv12承認後に開催回別の可変応募部門（1〜10部門）を本体へ実装。全6画面と所属モーダル、旧/admin/rules転送、未定義URLを再照合しルート変更なし。設定に部門削除確認を追加、回答/履歴/ランキング/CSVへ名称と証明要件を反映。全173テスト・DB155項目・ローカルAPI21項目・競合6項目・lint/build/DB lint成功。実ブラウザー全画面回帰とPC/スマホ描画は接続制限により保留。[部門設定](screens/admin-settings.md) / [DB](data-model.md) / [検証記録](verification.md)。
+
+
+2026-11-24 v13承認後: [回答入力](screens/entry.md)で1部門のみなら自動チェックする処理を追加。全6画面・所属モーダル・旧URL・未定義URLを再照合しルート変更なし。全178テスト・lint/build成功。DB/API変更なし、前版のDB155/API21/競合6は前版の結果として参照。PC/スマホ・両テーマの実描画と全画面手動回帰は引き続き保留。[検証記録](verification.md)。

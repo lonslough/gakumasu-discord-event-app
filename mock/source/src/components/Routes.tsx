@@ -48,9 +48,9 @@ export function AppRoutes() {
         <Route element={<Protected />}>
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/admin/responses" element={<ResponsesPage />} />
           <Route element={<AdminOnly />}>
             <Route path="/admin/users" element={<UsersPage />} />
-            <Route path="/admin/responses" element={<ResponsesPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route
               path="/admin/rules"

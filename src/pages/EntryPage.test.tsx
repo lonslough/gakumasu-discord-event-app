@@ -46,6 +46,77 @@ describe('回答入力の1つ上の順位のポイント', () => {
   })
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
+  const soleSettings = (requiresProof = false): EventSettings => ({ ...settings,
+    division_settings: { custom: { name: '唯一の部門', description: '', eligibility: '参加条件の案内', requiresProof, order: 0 } },
+  })
+  function newAnswer(config: EventSettings) {
+    mocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+    mocks.rpc.mockImplementation(name => Promise.resolve({ data: name === 'get_event_settings' ? config : { status: 'unranked', higher_score: null }, error: null }))
+  }
+  async function fillParticipant() {
+    fireEvent.click(await screen.findByRole('button', { name: '確認しました' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /サーバー内ユーザーネーム/ }), { target: { value: '新しい参加者' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /ゲーム内プロデューサーネーム/ }), { target: { value: '新しいP' } })
+    fireEvent.click(screen.getByRole('radio', { name: /十王 星南/ }))
+  }
+  it('新規の単一部門は自動チェックしクリックせずそのIDで送信できる', async () => {
+    newAnswer(soleSettings()); show()
+    const radio = await screen.findByRole('radio', { name: '唯一の部門' })
+    await waitFor(() => expect(radio).toBeChecked())
+    expect(radio).toBeEnabled()
+    expect(mocks.saveEntry).not.toHaveBeenCalled()
+    await fillParticipant()
+    fireEvent.click(screen.getByRole('button', { name: '回答を送信する' }))
+    fireEvent.click(await screen.findByRole('button', { name: '確認' }))
+    await waitFor(() => expect(mocks.saveEntry).toHaveBeenCalledWith(expect.objectContaining({ values: expect.objectContaining({ entryDivision: 'custom', discordUsername: '新しい参加者' }) })))
+  })
+  it('複数部門の新規回答は自動チェックしない', async () => {
+    newAnswer({ ...soleSettings(), division_settings: { ...soleSettings().division_settings, other: { name: '別の部門', description: '', requiresProof: false, order: 1 } } }); show()
+    const radios = await screen.findAllByRole('radio', { name: /唯一の部門|別の部門/ })
+    expect(radios).toHaveLength(2)
+    radios.forEach(radio => expect(radio).not.toBeChecked())
+  })
+  it('本人回答の読込完了まで待ち、保存済みの回答と選択を保持する', async () => {
+    let finish!: (result: unknown) => void
+    mocks.maybeSingle.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    mocks.rpc.mockImplementation(name => Promise.resolve({ data: name === 'get_event_settings' ? soleSettings() : { status: 'unranked', higher_score: null }, error: null }))
+    show()
+    await waitFor(() => expect(mocks.maybeSingle).toHaveBeenCalled())
+    expect(screen.queryByRole('radio', { name: '唯一の部門' })).not.toBeInTheDocument()
+    await act(async () => finish({ data: { ...submission, entry_division: 'custom', producer_name: '保存済みP' }, error: null }))
+    const radio = await screen.findByRole('radio', { name: '唯一の部門' })
+    expect(radio).toBeChecked(); expect(radio).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: /ゲーム内プロデューサーネーム/ })).toHaveValue('保存済みP')
+  })
+  it('自動チェックした証明必須部門でも証明2点不足を拒否する', async () => {
+    newAnswer(soleSettings(true)); show()
+    await waitFor(() => expect(screen.getByRole('radio', { name: '唯一の部門' })).toBeChecked())
+    expect(screen.getByText('参加条件の案内')).toBeInTheDocument()
+    await fillParticipant()
+    fireEvent.click(screen.getByRole('button', { name: '回答を送信する' }))
+    expect(await screen.findByText('PIDとPレベルがわかる画像を選択してください。')).toBeInTheDocument()
+    expect(screen.getByText('総出席日数がわかる画像を選択してください。')).toBeInTheDocument()
+    expect(mocks.saveEntry).not.toHaveBeenCalled()
+  })
+  it('設定再取得で単一部門になっても編集中の参加者名を保持する', async () => {
+    mocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+    let settingsCalls = 0
+    mocks.rpc.mockImplementation(name => {
+      if (name !== 'get_event_settings') return Promise.resolve({ data: { status: 'unranked', higher_score: null }, error: null })
+      const config = soleSettings()
+      if (++settingsCalls === 1) {
+        config.submission_end_at = config.server_now
+        config.division_settings!.other = { name: '別の部門', description: '', requiresProof: false, order: 1 }
+      }
+      return Promise.resolve({ data: config, error: null })
+    })
+    show(); await fillParticipant()
+    await waitFor(() => expect(screen.getByRole('radio', { name: '唯一の部門' })).toBeChecked(), { timeout: 2500 })
+    expect(screen.getByRole('textbox', { name: /サーバー内ユーザーネーム/ })).toHaveValue('新しい参加者')
+    expect(screen.getByRole('textbox', { name: /ゲーム内プロデューサーネーム/ })).toHaveValue('新しいP')
+    expect(mocks.saveEntry).not.toHaveBeenCalled()
+  })
+
   it('通知の下にポイントだけを表示し未保存のキャラ変更では再取得しない', async () => {
     show()
     const score = await screen.findByText('28,000')

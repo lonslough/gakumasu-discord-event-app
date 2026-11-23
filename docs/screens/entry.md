@@ -4,7 +4,7 @@
 
 ## 目的・データ取得
 
-`/entry`、user/adminともログイン必須。get_event_settingsで受付対象の開催回・期間・ルール・2名のキャラクターを取得し、そのevent_idと本人user_idでsubmissionsをmaybeSingle取得します。タイトルは開催回名、ページ画像はentryImageです。この画面に過去回を選択するUIはなく、共通Headerから[参加履歴](history.md)を開いて過去の参加情報・得点・提出画像を確認します。
+`/entry`、user/adminともログイン必須。get_event_settingsで受付対象の開催回・期間・ルール・2名のキャラクター・応募部門設定を取得し、そのevent_idと本人user_idでsubmissionsをmaybeSingle取得します。タイトルは開催回名、ページ画像はentryImageです。この画面に過去回を選択するUIはなく、共通Headerから[参加履歴](history.md)を開いて過去の参加情報・得点・提出画像を確認します。
 
 共通Headerにライト／ダークテーマの切替を表示します。端末連動と保存規則は[共通設計](../architecture.md)を参照します。
 
@@ -28,12 +28,12 @@
 | サーバー内ユーザーネーム | trim後1〜100文字、必須 |
 | ゲーム内プロデューサーネーム | trim後1〜100文字、必須 |
 | 育成キャラクター | 開催回設定から選択。enabledまたは既存回答のIDに一致する候補を表示 |
-| 応募部門 | open / switch_off / beginner、必須。既存回答があればdisabled |
+| 応募部門 | 開催回の1〜10部門をorder順に表示し設定名称・補足を使用。必須。新規回答で1部門なら自動チェック、複数部門なら選択。既存回答があればdisabled |
 | 評価値・最終所持スキルカード画像 | 任意、1ファイル |
-| PID・Pレベル画像 | beginner時に必須（既存画像で代替可） |
-| 総出席日数画像 | beginner時に必須（既存画像で代替可） |
+| PID・Pレベル画像 | 選択部門のrequiresProof=true時に必須（既存画像で代替可） |
+| 総出席日数画像 | 選択部門のrequiresProof=true時に必須（既存画像で代替可） |
 
-初心者の条件は「参加時点PLv60未満またはログイン日数90日以下」、初心者・switch_offはスイッチカードOFF必須と表示します。数値入力・OCR・ゲームAPIで資格を判定する実装はありません。画像の形式・サイズ・変換は共通画像設計を参照。
+選択した部門の参加条件文を改行を保持して表示し、空欄なら表示しません。既存回の初期値は現在の初心者条件等を維持しますが、案内文は管理者が編集できます。数値入力・OCR・ゲームAPIで資格を判定する実装はありません。画像の形式・サイズ・変換は共通画像設計を参照。
 
 ## モーダルと状態
 
@@ -68,4 +68,28 @@ entryServiceは既存回答の応募部門を優先し、event_id/user_idをキ�
 
 ## 実装根拠
 
+2026-11-23再照合: 回答フォーム・ルール/送信確認モーダル・本人のポイントRPCは維持。共通Headerから全認証ユーザーが[ランキング](admin-responses.md)へ移動可能になりました。ランキング公開設定と回答受付・本人の直前得点表示は別の条件です。既存EntryPage11テストとDBのポイント25項目を回帰確認。実ブラウザー手動確認は保留。[検証記録](../verification.md)。
+
 [EntryPage.tsx](../../src/pages/EntryPage.tsx)、[EntryRankPoints.tsx](../../src/components/entry/EntryRankPoints.tsx)、[EntryFormFields.tsx](../../src/components/entry/EntryFormFields.tsx)、[ImageFileField.tsx](../../src/components/entry/ImageFileField.tsx)、[entryService.ts](../../src/lib/entryService.ts)、[validation.ts](../../src/lib/validation.ts)、[ポイントRPC](../../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql)、[画面テスト](../../src/pages/EntryPage.test.tsx)、[DBテスト](../../supabase/tests/entry_rank_neighbor.sql)。
+
+## ページ画像の読み込み状態（2026-11-23）
+
+画像設定の解決・画像取得・デコード完了まで画像欄内にスピナーのみ表示します。取得・デコード失敗は静止スケルトンに切り替えます。確定前の既定画像や前の画像を一瞬表示せず、画像の準備中もフォーム操作は利用できます。ログインの既存useLoginLayoutと回答入力バナーの比率は維持します。共通処理は[PageImageState.tsx](../../src/components/PageImageState.tsx)、取得・キャッシュは[画像設計](../images.md)を参照してください。
+
+共通状態テストと全画面の既存テストは成功。PC/スマホ・ライト/ダークの実描画はブラウザー接続不能のため保留です。[検証記録](../verification.md)。
+
+2026-11-23 履歴順位追加時の全画面照合: EntryPageの入力/保存・提出画像モーダル、直前順位ポイント取得を照合。共通Headerの参加履歴では今回から本人順位も確認できます。回答入力の表示・保存条件は維持します。 全152テストで既存の画面/ルートを回帰確認。ブラウザー実描画・全画面手動操作は保留。[検証記録](../verification.md)。
+
+
+## 部門と証明の保存境界（2026-11-24）
+
+部門の固定列挙を廃止し、開催回設定から名称・補足・選択部門の条件文・証明欄を表示。validateEntryで所属部門と証明2点を検証します。送信確定時にも最新設定を取得し、saveEntryは未知部門・必須証明不足を画像アップロード前に拒否。編集中に削除された部門への回答はDBも拒否します。既存回答の部門ID変更禁止とレビュー済み画像の保護は維持。[DB](../data-model.md)。
+
+
+## 単一部門の自動選択（2026-11-24、v13承認後）
+
+開催回設定と本人回答の読み込みが完了し、保存済み回答がなく応募部門が1件だけの場合、唯一の部門IDをvalues.entryDivisionへ設定し、カードを自動チェックします。送信値も同じIDです。複数部門では新規未選択を維持し、保存済み回答は既存の部門を優先。名前・キャラクター・画像など他の入力を保持し、自動保存や自動送信は行いません。
+
+再訪・再ログイン・設定再取得でも同じ規則を適用。選択部門の参加条件文と証明画像欄・必須検証は従来の処理へ連動します。本人回答の取得中は自動選択せず、保存済み回答を上書きしません。DB/API変更なし。
+
+[EntryPageテスト](../../src/pages/EntryPage.test.tsx)16件（追加5件）と全178テスト、lint/build成功。自動選択から送信値への反映、複数部門、保存済み回答の遅延読込、証明2点不足、設定再取得時の名前保持を確認。実ブラウザーPC/スマホ・両テーマ・手動操作は保留。[検証記録](../verification.md)。

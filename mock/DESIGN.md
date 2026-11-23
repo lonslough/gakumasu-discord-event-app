@@ -1,6 +1,6 @@
 # Mockの設計・検証
 
-現在のレビュー版: **v6（2026-10-20）**。末尾のv6を参照。回答入力に1つ上の順位のポイントを追加。v5までの画像変更は保持。v1〜v5は過去のレビュー記録。
+現在のレビュー版: **v10（2026-11-23）**。末尾のv10を参照。参加履歴に本人順位を追加。v8までの変更を保持し、v1〜v8は過去のレビュー記録です。
 
 基準main: 3bee133db0a01f3c607cf0305a147fbae135af87。全画面は source/src/pages/、共通画面は source/src/components/ に抽出しています。本番srcの仕様正本は [設計索引](../docs/design-index.md) です。mockの差分は本書とREADMEへ記載します。
 
@@ -10,10 +10,10 @@
 |回答入力|[entry](../docs/screens/entry.md)|受付設定・本人回答・画像をメモリーから取得／更新。v6で本人の1つ上の順位のポイントを模擬表示|
 |参加履歴|[history](../docs/screens/history.md)|本人の現在／過去回回答。未確認／無効の得点と管理者メモは非表示|
 |ユーザー登録|[users](../docs/screens/admin-users.md)|メモリー内で登録、発行値はMOCK-PASSWORD。ログイン選択肢へ追加|
-|回答結果|[responses](../docs/screens/admin-responses.md)|初期回答4件。検索・ランキング・CSV・レビュー更新は既存UI。管理者専用|
-|設定|[settings](../docs/screens/admin-settings.md)|開催回・ルール・期間・2名のキャラ・ページ画像・受付切替をメモリーへ反映|
+|ランキング（旧回答結果）|[responses](../docs/screens/admin-responses.md)|v7で一般にも開放。一般は公開回選択とランキングのみ。管理者は既存の検索・CSV・レビュー等も使用可|
+|設定|[settings](../docs/screens/admin-settings.md)|開催回・ルール・期間・2名のキャラ・ページ画像・受付切替・v7の公開設定をメモリーへ反映|
 
-永続化を実装するモジュールはsupabase.ts/theme.ts/localPageImages.ts/siteConfig.tsを置換しています。画像変換はmainのライブラリーを同梱し、圧縮の外部Worker取得を無効化しています。画像ZIP・提出画像はBlobとして保持。HTTP配信ではHashRouter、file起動ではMemoryRouter。旧admin/rulesの転送と権限ガードはmainのRoutes.tsxを使用しています。
+永続化を実装するモジュールはsupabase.ts/theme.ts/localPageImages.ts/siteConfig.tsを置換しています。画像変換はmainのライブラリーを同梱し、圧縮の外部Worker取得を無効化しています。画像ZIP・提出画像はBlobとして保持。HTTP配信ではHashRouter、file起動ではMemoryRouter。旧admin/rulesの転送と他管理画面の権限ガードは維持し、v7でランキングのルートだけを一般認証ユーザーにも開放しています。
 
 ## 検証（2026-10-10）
 
@@ -122,7 +122,7 @@ R-04へ対応。広い画面だけ、画像中心Xを画面幅÷3へ変更。画
 
 配布app.js／app.css再生成、indexのタイトルv5。ビルドとDOM／処理43件成功。実ブラウザーの描画確認は接続先なしで保留。レビュー待ち、未承認、本体src・supabase・docs正本は未変更。検証制約はv4と同じです。
 
-## 現在のレビュー v6：1つ上の順位のポイント（2026-10-20）
+## 過去レビュー v6：1つ上の順位のポイント（2026-10-20）
 
 段階: v6承認済み。作業ID `20261020-entry-next-rank-7c91`。2026-10-20、直前のv6承認依頼へのユーザーの「承認する」を受領。本体画面・限定RPCを実装し自動検査を実施。PC／スマホのブラウザー手動確認は未接続のため保留。モックの表示仕様・配布物は承認時から変更していません。
 
@@ -147,3 +147,121 @@ R-04へ対応。広い画面だけ、画像中心Xを画面幅÷3へ変更。画
 未確認: ブラウザースキルで接続したがブラウザー0件。PC／スマホ・テーマ別の実描画、スクリーンショット、実SQLの権限・期間境界・同点順序は未確認。DOM検査はブラウザー手動テストや本体受入テストとして扱いません。新規RPCと認可の本実装は承認後に追加migrationで行い、既存テーブルRLSは維持する予定です。
 
 一時文書と詳細証跡はプロジェクト内 `.tmp/gakumasu-dev/20261020-entry-next-rank-7c91/`。本体の現行仕様と自動検証・保留範囲は[回答入力の正本](../docs/screens/entry.md)と[検証記録](../docs/verification.md)に記載しています。
+
+## 過去レビュー v7：ランキングの公開設定（2026-11-23）
+
+段階: v7承認済み・本体実装済み、ブラウザー検証保留。作業ID `20261123-public-rankings-a81f`。2026-11-23、直前のv7承認依頼に対する「v7を承認し、本実装へ進める」を受領。本体src・追加migration・専用RPCを実装し、自動/実DB/実HTTPの検証を実施しました。モックの表示仕様・配布物は承認時から変更していません。
+
+| 対象 | v7の仕様・モックの差分 |
+| --- | --- |
+| 入口と名称 | `/admin/responses` を認証必須の共通領域へ移動。既存メニュー・見出しを「ランキング」へ変更。未ログインはログインへ。他の管理者用ルートは従来ガード |
+| 一般向け | 公開回選択と既存ランキングだけ。集計・検索・回答一覧・確認編集・CSVなし。公開された受付対象回優先、なければ作成日時が最新の公開回 |
+| 管理者 | 非公開も含む全回、既存の集計・回答一覧・確認編集・CSVを維持。CSVハンドラー・レビュー保存にも管理者判定 |
+| 公開設定 | 設定画面の開催回欄にチェック追加。「設定を保存」で他設定と保存。既存6回と新規回の初期値はfalse。受付期間と独立。未保存の回切替は破棄 |
+| 空と失敗 | 公開回0件は「ランキングは公開準備中です。」。回答なしは既存の部門別空表示。読込中はspinner、取得失敗は通知、回切替中は旧結果を隠す |
+| 一般用データ | 公開候補はid/name/is_active/character_options/created_atのみ。順位行はcategory/entry_division/rank/discord_username/producer_name/confirmed_scoreの6項目。部門ごと上位10名まで |
+| 表示の共用 | ResponseRankingsの引数型を必要な表示項目へ限定し、一般と管理者で描画を共用。表示名・0点・同点順・上位3名強調・各部門10名は維持 |
+| 模擬状態 | 一般ビューの外側に確認用detailsを追加。通常・開催回取得失敗・ランキング取得失敗・読込中。モック専用で製品UIには含めない |
+
+変更ソースはcomponents/Header.tsx、components/Routes.tsx、components/responses/ResponseRankings.tsx、同PublicRankings.tsx（新規）、pages/ResponsesPage.tsx、pages/SettingsPage.tsx、types.ts、lib/supabase.ts、styles.css。`npm run build:mock`でapp.js/app.cssを再生成し、index.htmlをv7へ変更。v6の回答入力・ポイント表示、ログイン画像・調整ガイドのソースは未変更。
+
+メモリーアダプターは認証と公開条件を確認する2つの一般用RPCを模擬追加し、非公開・不存在を拒否する。既存の管理用RPCの制限は維持。モックに実DB・RLS・Storageへ接続する処理、Cookie・ブラウザー永続化は追加しない。本体は[新規migration](../supabase/migrations/20261123000000_add_public_rankings.sql)に公開フラグと最小データの専用RPCを実装し、他人の回答・レビューの直接SELECTを引き続き拒否する。
+
+今回の検査: 配布app.jsをJSDOMで操作し、公開・解除・初期値・保存前後・ログアウト後保持・新規公開回・空・読込中・エラー・初期回fallback・active優先・回/キャラクター切替・管理者CSV開始/確認モーダル・一般の管理ルート拒否を確認。共有Header/ルートの影響に対しログイン・回答入力・参加履歴・ユーザー登録・ランキング・設定の到達、旧rules転送も確認。アダプターの返却項目・未認証/非公開/不存在拒否・一般更新拒否・0点・得点なし/無効除外・同点順・上位10名・期間独立を確認。合計45項目成功、通信/永続化呼出し0件、DOM実行エラー0件。`git diff --check`成功。
+
+未確認: ブラウザー接続ホストが利用不能。ネイティブChromeの操作も「Computer Use was not approved to use Google Chrome」で拒否された。PC／スマホ、ライト／ダークの実描画、実ファイルダウンロード、スクリーンショットは未検証。CSVはダウンロード開始の呼出し確認で、実ファイル保存の確認ではない。遅延した実ネットワーク応答・サーバー保存失敗・実SQL/RLS・再読み込み後の永続化・別セッション間の反映も本実装後の検証対象。過去版の未確認事項を今回検証済みとは扱わない。
+
+詳細記録はプロジェクト内 `.tmp/gakumasu-dev/20261123-public-rankings-a81f/` のspec.md、design.md、verification.md、dom-results.json、check-mock.cjs。起動・レビュー手順は[README](README.md)のv7を参照。
+
+本体の追加検証: 130テスト、実DB87項目（公開ランキング38＋既存49）、実HTTP28項目、DB lint、アプリlint/build成功。画面の旧応答破棄・保存失敗を本体テストで確認し、公開フラグの永続化・別セッション反映・実RLSをローカルAPIで確認。PC/スマホ・テーマ別の実描画、実ブラウザー操作・実CSV保存は引き続き未検証。詳しくは[本体設計](../docs/screens/admin-responses.md)と[検証記録](../docs/verification.md)。
+
+## 現在のレビュー v8：画像ローディング（2026-11-23）
+
+段階: v8承認済み・本体実装済み、ブラウザー検証保留。2026-11-23、ユーザーの「承認」を受領。作業ID 20261123-page-image-loading-b62d。
+
+対象は設定のページ画像プレビュー、ログインのタイトル画像、回答入力のバナー。読み込み中は可視テキストを伴わないスピナー、失敗時はスピナーを止めてスケルトン。aria-labelで状態を伝えます。設定取得・画像ロードとデコードが終わるまで画像を表示しません。設定の開催回変更直後から旧画像を隠し、公開画像への暫定フォールバックを止めます。連続切替の旧応答は破棄し、未登録新規は空欄です。既存の入力・画像調整・保存・権限は維持します。
+
+変更: source/src/components/PageImageState.tsx（新規）、components/settings/PageImageSettings.tsx、lib/siteConfig.ts、main.tsx、pages/LoginPage.tsx、pages/EntryPage.tsx、pages/SettingsPage.tsx、styles.css。配布app.js/app.cssを再生成、index.htmlをv8へ更新。左下の共通確認メニューで通常・低速・読込中維持・失敗を再現できます。シナリオはメモリー内だけで保持し、再読み込みで初期化します。
+
+配布JSのDOM検査22項目成功。ログイン/回答/設定の処理中・失敗・連続回切替・旧応答破棄・未登録画像・通信/永続化0件を確認。ImageとBlob URLは検査時に代用し、実描画・デコードを確認した証拠ではありません。ブラウザー接続ホストが利用不能、Chrome接続は承認タイムアウトのためPC/スマホ・両テーマ・スクリーンショットは未確認。各回のサンプル画像は同じ絵柄です。本番HTTPキャッシュ・IndexedDB・API/Storage/Workflowとの整合は本実装後に検証します。
+
+詳細文書・証跡: .tmp/gakumasu-dev/20261123-page-image-loading-b62d/ のspec.md、design.md、verification.md、dom-results.json。承認後は本体srcと関連テスト、docs正本を更新。supabaseは変更なし。本体全142テスト・lint/build成功、実ブラウザー検証は保留。
+
+
+
+## レビュー v9：参加履歴の順位（2026-11-23）
+
+この節は過去のv9。v8までの機能を保持し、本体への実装はv9の明示承認後です。
+
+mock/index.htmlを開きuser1でログイン→「参加履歴」。「確認済み得点」の直後に「順位」列を追加しました。第6回=2位、第5回=1位（0点）、第4回=3位、第3回=ランク外（4位）、第2回=—（未確認）、第1回=—（レビューなし）。user2は無効/確認済み得点なしの「—」、user5/adminは参加履歴なしを確認できます。
+
+開催回のキャラクター×応募部門ごとに、確認済み得点降順・同点は回答更新日時昇順。4位以下は「ランク外」、集計対象外は「—」。初期状態は全回非公開ですが本人順位を表示します。管理者の設定から公開を変えても本人順位は同じです。再訪時にメモリーの回答・レビューから再計算します。PC/スマートフォンは同じ列順・既存横スクロール・画像モーダルを維持します。
+
+モックはメモリー内のみでリロードで初期化。API・SQL/RLS・実保存を保証しません。変更対象は履歴画面・型・メモリーアダプター・確認用サンプルと配布物です。実ブラウザーは接続ホストが利用不能、ネイティブChromeも利用拒否。PC/スマートフォン描画・テーマ別描画・手動操作は未確認です。
+
+詳細: .tmp/gakumasu-dev/20261123-history-rank-c49e/ のspec.md、design.md、verification.md。
+
+
+モックv9の確認結果: build:mock成功、配布app.jsのDOM検査14項目成功。列順・各順位/対象外・本人切替・空表示・画像モーダル処理・通信/永続化なしを確認。実ブラウザーの描画/操作は上記接続制限により未確認。同点・11位以下・公開切替・失敗/再試行と実DB認可等は本実装後の確認対象です。
+
+## レビュー v10：確認状態列を非表示（2026-11-23）
+
+ユーザー指摘「確認状態は表示不要」に対応し、参加履歴の確認状態列とバッジを削除。列順は開催回→確認済み得点→順位→ユーザー名です。得点欄の確認待ち/対象外/得点未登録や、順位判定に使う確認状態は維持します。user1で参加履歴を開いて確認してください。v9の各順位・非公開回表示・画像モーダル・user2の順位なし・user5/adminの空表示は維持します。メモリーのみで永続化/バックエンド通信なし。実ブラウザー接続制限は継続しPC/スマートフォン描画は未確認。v10は会話の「承認」により承認済み、本体実装済み。
+
+v10検証: build:mock・配布JSのDOM検査16項目・差分チェック成功。確認状態列なし・9列一致と順位/得点・画像モーダル等を確認。実描画は未確認。
+
+2026-11-23: v10承認後の本体は全152テスト・DB109項目・HTTP37項目・lint/build/DB lint成功。詳細は[検証記録](../docs/verification.md)。実ブラウザー描画/手動操作は保留です。
+
+
+## 過去レビュー v11：応募部門の開催回別編集（2026-11-24）
+
+段階: 承認待ち。本体未実装。作業ID 20261124-division-settings-d73a。
+
+SettingsPageの対象キャラクター直後に部門編集欄を常時表示。固定3部門のname/descriptionとbeginnerのeligibilityを開催回のdivision_settingsへメモリー保存します。名称必須50文字、補足任意200文字、初心者条件任意500文字。前後trim・完全一致の名称重複禁止、文中改行保持。文字数超過は保存時に拒否し入力を保持します。新規回は作成日時最新回の保存値を独立コピー。0回は全空欄です。
+
+回答カードと本人履歴、一般/管理ランキング、管理表、CSVへ回別名称を渡します。既存回答も次回取得時に新名称へ変更し、他回と固定ID・ランキング集計・証明画像要件は維持。空の補足・条件は要素ごと非表示。公開ランキングは公開回の設定だけを取得します。
+
+変更: source/src/lib/divisions.tsとcomponents/settings/DivisionSettingsEditor.tsxを新設。SettingsPage、EntryPage、HistoryPage、ResponsesPage、EntryFormFields、ResponseRankings、ResponsesTable、PublicRankings、types、メモリーsupabase、stylesを更新。index.htmlをv11へ変更しapp.js/app.cssを再生成。設定末尾の確認メニューで通常/保存失敗/開催回なしを再現。既存認証とメモリー限定の方式を維持し、通信・ブラウザー永続化は追加していません。本体のsrc/・supabase/・テスト・docs正本は変更していません。
+
+検査: build:mock成功。配布app.jsのDOM検査35項目成功。既存初期値、欄配置、50/200/500ちょうどと超過、空白のみ、重複、trim/改行、回別保存、未保存破棄、最新回引継ぎ、コピー独立、保存失敗/入力保持/処理中無効、管理/一般ランキング・管理表・CSV・本人履歴、初心者条件、空文非表示、一般の設定URL拒否、開催回0件から初回保存と次の引継ぎを確認。通信/ブラウザー永続化0件・DOM実行エラー0件。
+
+未確認: 実ブラウザー接続ホスト利用不能、Chrome選択は「Computer Use was not approved to use Google Chrome」。実描画・PC/スマホ・両テーマ・スクリーンショット・手動操作は未確認。DOM検査ではImage/Blob URLを代用し、CSVはBlob内容を確認しただけで実ファイル保存は未確認。DB/RLS・API・再読込後の永続化は承認後に本体で確認する。モック再読込では全変更が初期化されます。
+
+仕様・設計・検査詳細はプロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md・design.md・verification.md・dom-results.json。レビュー手順は[README](README.md)のv11。
+
+
+## 過去レビュー v12：部門数変更（2026-11-24）
+
+段階: v12承認済み・本体実装済み、ブラウザー手動検証保留。作業ID 20261124-division-settings-d73a。R-01に対応しv11の固定3部門を置き換えました。これまで決まった開催回別・名称/補足/保存方法/反映先の仕様は維持します。
+
+- 部門数1〜10。追加は空欄と証明オフ、IDは自動生成し既存3IDは維持。初回は1部門空欄、最新回があれば部門数と全設定をコピー。
+- 全部門に参加条件文（任意500文字）と証明画像2点必須のcheckbox。回答のある部門は削除と証明要件変更不可、名称/案内は編集可能。件数未取得/失敗時も保護する。
+- 削除は対象名と設定保存で確定する旨を示すモーダルで確認。キャンセルは入力保持。「設定を保存」で構成と他設定を一緒に保存。
+- 回答カードと証明入力/検証/保存、本人履歴、管理/一般ランキングと公開RPC、管理表/CSVは可変IDの設定を使用。カスタム部門も既存と同じ順位計算。回答登録後の部門ID変更禁止を維持。
+- 模擬保存でも現在の回答を確認し削除/証明変更を拒否。実装後は新規migrationで動的所属・証明検証・回答済み部門保護・競合制御をDBにも実装する。管理者限定usage RPCは部門別件数のみ返す予定で、一般の他人データ取得権限は広げない。
+
+v11から変更したソース: lib/divisions、types、DivisionSettingsEditor、SettingsPage、EntryFormFields、EntryPage、validation、entryService、HistoryPage、ResponseRankings、PublicRankings、ResponsesPage、メモリーsupabase、styles。index.htmlと配布app.js/app.cssをv12へ再生成。設定のモック確認メニューに回答件数取得失敗を追加。実サービス通信・ブラウザー永続化は追加なし。
+
+今回の検査: 配布JSのDOM55項目成功。v11の文字数・保存・各画面の部門名を可変構造で再検査し、追加/削除確認キャンセル/削除、1〜10境界、証明初期オフ、カスタム条件/証明要求・送信拒否/任意応募保存・履歴、回答後保護、10部門ランキング、件数取得失敗の保護、初回1部門と継承も確認。通信/ブラウザー永続化呼出し0・DOM実行エラー0。
+
+模擬アダプター直接呼出し25項目成功: 回答済み削除/証明変更拒否、0/11部門拒否、一般更新/usage拒否、未知部門拒否、カスタム証明検証/応募/再保存、回答後部門変更拒否、カスタム公開順位と履歴、Unicode上限を確認。build:mock・差分チェック成功。
+
+未確認: v11時点の接続ホスト利用不能/Chrome利用拒否があるため実ブラウザーを迂回せず、v12の描画・手動操作・PC/スマホ・両テーマは未確認。DOM検査でImage/Blob URLを代用。CSVはBlob内容で実ファイル保存は未確認。DB/RLS/同時受付/実API/実永続化は本体実装後の検証対象です。旧版の未確認事項を今回済みとは扱いません。
+
+詳細: プロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md、design.md、verification.md、dom-results-v12.json、adapter-results-v12.json。v11記録も保持。起動と確認手順は[README](README.md)のv12。
+
+
+2026-11-24: v12に対するユーザーの「承認」を受領し本体へ実装。モックの表示・配布物は承認時から変更なし。本体は表示順をorderで永続化し実DBの動的検証と競合保護を実装。全173テスト、DB155、実API21、競合6、lint/build/DB lint成功。実ブラウザー手動操作・描画は保留。[本体設定設計](../docs/screens/admin-settings.md) / [検証記録](../docs/verification.md)。
+
+
+## 現在のレビュー v13：単一部門の自動選択（2026-11-24）
+段階: v13承認済み・本体反映済み、ブラウザー手動検証保留。作業ID 20261124-division-settings-d73a、R-02対応。部門1件の新規回答を読込後に自動チェックする。保存済み回答は優先し、複数部門の新規回答は未選択を維持。自動選択による保存は行わず、他入力・条件文・証明必須処理・検証は従来どおり。
+
+変更はmock/source/src/pages/EntryPage.tsxのloading/rulesLoading/existing判定後の選択初期化、lib/supabase.tsの未回答単一部門サンプル追加、配布index.html/app.js/app.cssと説明。既存サンプルの参加履歴生成と「開催回なし」シナリオへ確認用回を混入させない。確認用回の画像は既存サンプルのZIPを参照。DB/API/他画面の実装と本体srcは変更していない。
+
+検査: build:mock成功。配布JSの単一部門17項目（自動選択・確認/保存・証明必須検証・他入力保持・再訪/再ログイン・既存回答・複数部門）と関連部門機能55項目が成功。通信/ブラウザー永続化0・DOM実行エラー0。詳細はプロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md/design.md/verification.md、single-results-v13.json、regression-results-v13.json。
+
+実ブラウザーPC/スマホ・両テーマ・手動操作は未確認。既存の接続ホスト利用不能/Chrome利用拒否を迂回せず、DOM検査を実描画/手動確認の代用としない。モックはメモリーのみ、再読込で初期化。操作手順は[README](README.md)のv13。本体への反映はv13の明示承認後。
+
+
+2026-11-24: v13へのユーザー「承認」を受領し本体EntryPageへ反映。関連16件/全178テスト・lint/build成功。モック配布物は承認時から変更なし。実ブラウザー手動確認は保留。[回答入力設計](../docs/screens/entry.md) / [検証記録](../docs/verification.md)。

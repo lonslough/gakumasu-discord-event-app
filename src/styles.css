@@ -373,6 +373,20 @@ a {
   padding: 18px;
 }
 
+.ranking-publication-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 8px;
+}
+
+.ranking-publication-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
 .event-history-selector label {
   max-width: 420px;
 }
@@ -1953,3 +1967,29 @@ html .login-page .login-panel {
 }
 
 .modal-wide:has(.image-crop-workspace.with-guide) { width: min(1240px, 100%); }
+
+/* Page image state: reserve the image area while resolving or decoding. */
+.page-image-frame { position: relative; overflow: hidden; }
+.page-image-placeholder { display: grid; place-items: center; width: 100%; height: 100%; min-height: 120px; background: var(--bg); }
+.page-image-placeholder .spinner { margin: 0; }
+.page-image-skeleton { background: linear-gradient(110deg, var(--bg) 20%, rgba(139,124,255,.16) 45%, var(--bg) 70%); border: 1px solid rgba(139,124,255,.18); border-radius: 12px; }
+.page-image-frame.page-image-preview { aspect-ratio: 16 / 5; height: auto; }
+.page-image-frame.page-image-preview img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.login-image-placeholder { position: absolute; inset: 0 45% 0 0; }
+@media (max-width: 900px) { .login-image-placeholder { inset: 0 0 55% 0; } }
+
+/* v11: fixed division identities with editable edition-specific text. */
+.settings-form-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.division-settings-item { padding: 18px; margin: 16px 0; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+.division-settings-item h3 { margin: 0 0 14px; overflow-wrap: anywhere; }
+.division-settings-item label { margin-top: 12px; }
+.division-settings-item textarea { resize: vertical; }
+.radio-cards strong, .radio-cards small, .division-ranking h3, .form-section .help { overflow-wrap: anywhere; white-space: pre-wrap; }
+.radio-cards label, .radio-cards label > span { min-width: 0; }
+@media (max-width: 620px) { .division-settings-item { padding: 12px; } }
+
+/* v12: variable divisions and proof requirements. */
+.division-settings-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.division-settings-toolbar h3 { margin: 0; }
+.division-settings-item label.division-proof-toggle { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.division-proof-toggle input { width: auto; flex: 0 0 auto; }

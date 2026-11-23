@@ -1,7 +1,10 @@
+import { DivisionSettingsEditor } from '../components/settings/DivisionSettingsEditor'
+import { copyDivisions, emptyDivisions, normalizeDivisions, divisionError } from '../lib/divisions'
+import type { DivisionSettings } from '../types'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
 import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
-import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
+import { cacheLocalPageImages, downloadPageImages } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
@@ -22,19 +25,26 @@ const toLocalDateTime = (value: string | null) => {
 
 export function SettingsPage() {
   const { session } = useAuth()
+  const [divisions, setDivisions] = useState<DivisionSettings>(emptyDivisions)
+  const [usageResult, setUsageResult] = useState<{ eventId: string; counts: Record<string, number>; error: string } | null>(null)
   const [rules, setRules] = useState('')
   const [eventName, setEventName] = useState('')
+  const [rankingPublished, setRankingPublished] = useState(false)
   const [submissionStart, setSubmissionStart] = useState('')
   const [submissionEnd, setSubmissionEnd] = useState('')
   const [characters, setCharacters] = useState<CharacterOption[]>([])
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  let usage: Record<string, number> | null = null
+  if (selectedEventId === newEventValue) usage = {}
+  else if (usageResult?.eventId === selectedEventId && !usageResult.error) usage = usageResult.counts
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [rulesDraft, setRulesDraft] = useState('')
   const [rulesSourceEventId, setRulesSourceEventId] = useState('')
   const [rulesSubmitting, setRulesSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [activating, setActivating] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [pageImageFiles, setPageImageFiles] = useState<PageImageFiles>({ login: null, entry: null })
@@ -60,8 +70,10 @@ export function SettingsPage() {
   useEffect(() => {
     setPageImageFiles({ login: null, entry: null })
     if (selectedEventId === newEventValue) {
+      setDivisions(events[0] ? copyDivisions(events[0].division_settings) : emptyDivisions())
       setRules('')
       setEventName('')
+      setRankingPublished(false)
       setSubmissionStart('')
       setSubmissionEnd('')
       setCharacters(emptyCharacters())
@@ -69,16 +81,32 @@ export function SettingsPage() {
     }
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected) return
+    setDivisions(copyDivisions(selected.division_settings))
     setRules(selected.rules_description)
     setEventName(selected.name)
+    setRankingPublished(Boolean(selected.ranking_published))
     setSubmissionStart(toLocalDateTime(selected.submission_start_at))
     setSubmissionEnd(toLocalDateTime(selected.submission_end_at))
     setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
   }, [events, selectedEventId])
 
+  useEffect(() => {
+    if (!selectedEventId || selectedEventId === newEventValue) return
+    let current = true
+    void Promise.resolve(supabase.rpc('get_event_division_usage', { p_event_id: selectedEventId })).then(({ data, error }) => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: data ?? {}, error: error ? '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' : '' })
+    }).catch(() => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: {}, error: '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' })
+    })
+    return () => { current = false }
+  }, [selectedEventId, events])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!session || rules.length > maxRulesLength) return
+    if (!session || submitting || rules.length > maxRulesLength) return
+    const normalizedDivisions = normalizeDivisions(divisions)
+    const invalidDivisions = divisionError(normalizedDivisions)
+    if (invalidDivisions) { setError(invalidDivisions); return }
     if (!eventName.trim()) {
       setError('開催回の名称を入力してください。')
       return
@@ -105,6 +133,8 @@ export function SettingsPage() {
     setError('')
     const values = {
       name: eventName.trim(),
+      division_settings: normalizedDivisions,
+      ranking_published: rankingPublished,
       rules_description: rules,
       submission_start_at: submissionStart ? new Date(submissionStart).toISOString() : null,
       submission_end_at: submissionEnd ? new Date(submissionEnd).toISOString() : null,
@@ -178,21 +208,32 @@ export function SettingsPage() {
   const activateEvent = async () => {
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected?.page_images_path) return setError('先にこの開催回のページ画像をStorageへ保存してください。')
-    if (import.meta.env.DEV) {
-      try {
-        await cacheLocalPageImagesFromStorage(selected.page_images_path)
-      } catch {
-        return setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+    if (activating) return
+    setActivating(true)
+    setError('')
+    setMessage('')
+    try {
+      let images: Awaited<ReturnType<typeof downloadPageImages>> | undefined
+      if (import.meta.env.DEV) {
+        try {
+          images = await downloadPageImages(selected.page_images_path)
+        } catch {
+          setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+          return
+        }
       }
+      const { error: activateError } = import.meta.env.DEV
+        ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
+        : await supabase.functions.invoke('activate-event', { body: { eventId: selectedEventId } })
+      if (activateError) throw activateError
+      if (images) await cacheLocalPageImages(images.login, images.entry, selectedEventId)
+      await loadEvents(selectedEventId)
+      setMessage('回答受付対象の開催回を切り替えました。')
+    } catch {
+      setError('回答受付対象を切り替えられませんでした。')
+    } finally {
+      setActivating(false)
     }
-    const { error: activateError } = import.meta.env.DEV
-      ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
-      : await supabase.functions.invoke('activate-event', {
-          body: { eventId: selectedEventId },
-        })
-    if (activateError) return setError('回答受付対象を切り替えられませんでした。')
-    await loadEvents(selectedEventId)
-    setMessage('回答受付対象の開催回を切り替えました。')
   }
 
   return (
@@ -201,7 +242,7 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">ADMINISTRATION</p>
           <h1>設定</h1>
-          <p>イベントルール、対象キャラクター、応募受付期間を設定します。</p>
+          <p>イベントルール、対象キャラクター、応募部門、応募受付期間を設定します。</p>
         </div>
       </div>
       {message && <div className="notice success">{message}</div>}
@@ -210,13 +251,13 @@ export function SettingsPage() {
         {loading ? (
           <div className="spinner" />
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={submit}><fieldset className="settings-form-fields" disabled={submitting}>
             <fieldset className="settings-section">
               <legend>開催回</legend>
               <div className="form-grid">
                 <label>
                   編集する開催回
-                  <select value={selectedEventId} onChange={(event) => { setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
+                  <select disabled={activating} value={selectedEventId} onChange={(event) => { setPageImageFiles({ login: null, entry: null }); setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
                     <option value={newEventValue}>新規開催</option>
                   </select>
@@ -227,10 +268,15 @@ export function SettingsPage() {
                 </label>
               </div>
               <div className="event-settings-actions">
-                <button type="button" className="button secondary small" disabled={selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
+                <button type="button" className="button secondary small" disabled={activating || selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
                   この開催回を回答受付対象にする
                 </button>
               </div>
+              <label className="ranking-publication-toggle">
+                <input type="checkbox" checked={rankingPublished} onChange={(event) => setRankingPublished(event.target.checked)} />
+                ランキングを公開する
+              </label>
+              <small>ログインしたユーザーに、この開催回のランキングを公開します。「設定を保存」で反映されます。</small>
             </fieldset>
             <fieldset className="settings-section">
               <legend>応募期間</legend>
@@ -305,6 +351,7 @@ export function SettingsPage() {
                 <small>強化月間の2枠に割り当てるキャラクターを選択します。同じキャラクターは重複して選択できません。</small>
                 </label>
             </fieldset>
+<DivisionSettingsEditor key={selectedEventId} value={divisions} onChange={setDivisions} usage={usage} usageError={usageResult?.eventId === selectedEventId ? usageResult.error : ''} />
             <div className="settings-section rules-setting-row">
               <div>
                 <strong>ルール説明</strong>
@@ -319,7 +366,7 @@ export function SettingsPage() {
                 {submitting ? '保存中…' : '設定を保存'}
               </button>
             </div>
-          </form>
+          </fieldset></form>
         )}
       </section>
       {showRulesModal && (

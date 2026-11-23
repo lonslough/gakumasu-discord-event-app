@@ -1,3 +1,5 @@
+import { defaultDivisionSettings, requiresDivisionProof } from './divisions'
+import type { DivisionSettings } from '../types'
 import type { Category, EntryDivision } from '../types'
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -72,6 +74,7 @@ export function validateEntry(
     beginnerProof: false,
     loginDaysProof: false,
   },
+  divisions: DivisionSettings = defaultDivisionSettings,
 ): Record<string, string> {
   const errors: Record<string, string> = {}
   const discordLength = values.discordUsername.trim().length
@@ -81,16 +84,16 @@ export function validateEntry(
   if (producerLength < 1 || producerLength > 100)
     errors.producerName = '1文字以上100文字以下で入力してください。'
   if (!values.category) errors.category = '育成キャラクターを選択してください。'
-  if (!values.entryDivision)
+  if (!values.entryDivision || !Object.prototype.hasOwnProperty.call(divisions, values.entryDivision))
     errors.entryDivision = '応募部門を選択してください。'
   if (
-    values.entryDivision === 'beginner' &&
+    requiresDivisionProof(divisions, values.entryDivision) &&
     !values.beginnerProofFile &&
     !existingFiles.beginnerProof
   )
     errors.beginnerProofFile = 'PIDとPレベルがわかる画像を選択してください。'
   if (
-    values.entryDivision === 'beginner' &&
+    requiresDivisionProof(divisions, values.entryDivision) &&
     !values.loginDaysProofFile &&
     !existingFiles.loginDaysProof
   )

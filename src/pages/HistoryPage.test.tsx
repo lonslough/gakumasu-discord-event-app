@@ -10,7 +10,7 @@ vi.mock('../lib/supabase', () => ({ supabase: { rpc: mocks.rpc,
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ session: { user: { id: 'self' } } }) }))
 
 const row = (overrides: Partial<SubmissionHistory> = {}): SubmissionHistory => ({
-  id: 'submission', event_id: 'event', event_name: '第1回', is_active: false,
+  rank: 1, id: 'submission', event_id: 'event', event_name: '第1回', is_active: false,
   character_options: [{ id: 'sena', name: '十王 星南', shortName: 'SENA', enabled: true }],
   discord_username: 'サーバー名', producer_name: 'P名', category: 'sena', entry_division: 'open',
   created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z',
@@ -39,6 +39,12 @@ describe('参加履歴', () => {
     expect(within(cards[1]).getByText('12,345')).toBeInTheDocument()
     expect(within(cards[1]).getByText('十王 星南')).toBeInTheDocument()
     expect(within(cards[1]).getByText('サーバー名')).toBeInTheDocument()
+    expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual([
+      '開催回', '確認済み得点', '順位', 'サーバー内ユーザーネーム', 'ゲーム内プロデューサーネーム',
+      '育成キャラクター', '応募部門', '初回提出日時', '最終更新日時',
+    ])
+    expect(within(table).queryByText('確認状態')).not.toBeInTheDocument()
+    expect(table.querySelector('.badge')).not.toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(mocks.rpc).toHaveBeenCalledWith('list_my_submission_history')
   })
@@ -51,6 +57,25 @@ describe('参加履歴', () => {
     show()
     expect(await screen.findByText(label)).toBeInTheDocument()
     expect(screen.queryByText('99,999')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [1, '1位'], [2, '2位'], [3, '3位'], [4, 'ランク外'], [11, 'ランク外'], [null, '—'],
+  ] as const)('順位 %s を %s と表示', async (rank, label) => {
+    mocks.rpc.mockResolvedValue({ data: [row({ rank, confirmed_score: 0 })], error: null })
+    show()
+    const table = await screen.findByRole('table')
+    expect(within(table).getAllByRole('row')[1].children[2]).toHaveTextContent(label)
+  })
+
+  it.each([
+    ['pending', 99999], ['invalid', 99999], ['verified', null],
+  ] as const)('%s / %s は得点や順位を誤表示しない', async (verification_status, confirmed_score) => {
+    mocks.rpc.mockResolvedValue({ data: [row({ rank: 1, verification_status, confirmed_score })], error: null })
+    show()
+    const table = await screen.findByRole('table')
+    expect(within(table).getAllByRole('row')[1].children[2]).toHaveTextContent('—')
+    expect(within(table).queryByText('1位')).not.toBeInTheDocument()
   })
 
   it('未参加では回答入力へのリンクを表示', async () => {

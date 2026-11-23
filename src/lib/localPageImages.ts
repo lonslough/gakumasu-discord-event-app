@@ -14,13 +14,12 @@ function openDatabase(): Promise<IDBDatabase> {
   })
 }
 
-export async function cacheLocalPageImages(loginImage: Blob, entryImage: Blob) {
+export async function cacheLocalPageImages(loginImage: Blob, entryImage: Blob, eventId: string) {
   if (!import.meta.env.DEV) return
   const database = await openDatabase()
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(storeName, 'readwrite')
-    transaction.objectStore(storeName).put(loginImage, 'login')
-    transaction.objectStore(storeName).put(entryImage, 'entry')
+    transaction.objectStore(storeName).put({ eventId, login: loginImage, entry: entryImage }, 'active')
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error)
   })
@@ -31,11 +30,11 @@ export async function cacheLocalPageImages(loginImage: Blob, entryImage: Blob) {
 export async function cacheLocalPageImagesFromStorage(path: string) {
   if (!import.meta.env.DEV) return
   const images = await downloadPageImages(path)
-  await cacheLocalPageImages(images.login, images.entry)
+  await cacheLocalPageImages(images.login, images.entry, path.split('/')[0])
 }
 
 export async function downloadPageImages(path: string) {
-  const { data, error } = await supabase.storage.from('page-images').download(path)
+  const { data, error } = await supabase.storage.from('page-images').download(path, {}, { cache: 'no-store' })
   if (error) throw error
   const files = unzipSync(new Uint8Array(await data.arrayBuffer()))
   const login = files['images/page/login.jpg']
@@ -50,15 +49,20 @@ export async function downloadPageImages(path: string) {
 export async function loadLocalPageImages() {
   if (!import.meta.env.DEV) return null
   const database = await openDatabase()
-  const result = await new Promise<{ login?: Blob; entry?: Blob }>((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readonly')
-    const loginRequest = transaction.objectStore(storeName).get('login')
-    const entryRequest = transaction.objectStore(storeName).get('entry')
-    transaction.oncomplete = () => resolve({ login: loginRequest.result, entry: entryRequest.result })
-    transaction.onerror = () => reject(transaction.error)
-  })
-  database.close()
-  return result.login && result.entry ? result as { login: Blob; entry: Blob } : null
+  try {
+    const result = await new Promise<{ eventId?: string; login?: Blob; entry?: Blob } | undefined>((resolve, reject) => {
+      const transaction = database.transaction(storeName, 'readonly')
+      const request = transaction.objectStore(storeName).get('active')
+      transaction.oncomplete = () => resolve(request.result)
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+    // Legacy unscoped login/entry entries are intentionally ignored.
+    return result?.eventId && result.login instanceof Blob && result.entry instanceof Blob
+      ? { eventId: result.eventId, login: result.login, entry: result.entry } : null
+  } finally {
+    database.close()
+  }
 }
 
 export const localPageImagesUpdatedEvent = updatedEvent

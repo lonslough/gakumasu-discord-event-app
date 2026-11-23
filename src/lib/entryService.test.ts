@@ -26,7 +26,7 @@ import {
   getSettingsRefreshDelay,
   saveEntry,
 } from './entryService'
-import type { Submission } from '../types'
+import type { DivisionSettings, Submission } from '../types'
 
 const existingSubmission: Submission = {
   id: 'submission-id',
@@ -129,6 +129,25 @@ describe('saveEntry', () => {
 })
 
 describe('getSettingsRefreshDelay', () => {
+  it('新規カスタム部門の証明2点を保存し、再保存でもパスを残す', async () => {
+    vi.clearAllMocks()
+    mocks.upsert.mockResolvedValue({ error: null })
+    const existing = { ...existingSubmission, entry_division: 'custom', beginner_proof_image_path: 'user-id/beginner-proof/a.jpg', login_days_proof_image_path: 'user-id/login-days-proof/a.jpg' }
+    await saveEntry({ userId: existing.user_id, eventId: existing.event_id, values: entryValuesFromSubmission(existing), existing,
+      divisions: { custom: { name: '証明枠', description: '', requiresProof: true } } })
+    expect(mocks.upsert.mock.calls[0][0]).toMatchObject({ entry_division: 'custom', beginner_proof_image_path: existing.beginner_proof_image_path, login_days_proof_image_path: existing.login_days_proof_image_path })
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+  it('削除済み部門や証明不足のカスタム部門はアップロード前に拒否する', async () => {
+    vi.clearAllMocks()
+    const values = { ...createInitialEntryValues(), entryDivision: 'custom', resultFile: new File(['x'], 'x.jpg', { type: 'image/jpeg' }) }
+    const cases: DivisionSettings[] = [{}, { custom: { name: '証明枠', description: '', requiresProof: true } }]
+    for (const divisions of cases) {
+      await expect(saveEntry({ userId: 'user-id', eventId: 'event-id', values, existing: null, divisions })).rejects.toThrow('database')
+    }
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.upsert).not.toHaveBeenCalled()
+  })
   it('refreshes just after the opening boundary', () => {
     expect(
       getSettingsRefreshDelay(

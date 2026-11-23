@@ -1,3 +1,5 @@
+import { defaultDivisionSettings, requiresDivisionProof } from './divisions'
+import type { DivisionSettings } from '../types'
 import { compressImageForUpload } from './imageCompression'
 import { supabase } from './supabase'
 import { fileExtension, type EntryValues } from './validation'
@@ -80,6 +82,7 @@ interface SaveEntryInput {
   eventId: string
   values: EntryValues
   existing: Submission | null
+  divisions?: DivisionSettings
 }
 
 async function resolveResultPath(
@@ -109,6 +112,7 @@ export async function saveEntry({
   eventId,
   values,
   existing,
+  divisions = defaultDivisionSettings,
 }: SaveEntryInput): Promise<void> {
   const entryDivision = (existing?.entry_division ??
     values.entryDivision) as EntryDivision
@@ -122,7 +126,8 @@ export async function saveEntry({
     )
     if (resultPath && values.resultFile) uploaded.push(resultPath)
 
-    const isBeginner = entryDivision === 'beginner'
+    if (!Object.hasOwn(divisions, entryDivision)) throw new Error('database')
+    const isBeginner = requiresDivisionProof(divisions, entryDivision)
     const beginnerProofPath = await resolveProofPath(
       userId,
       isBeginner,
@@ -166,11 +171,11 @@ export async function saveEntry({
         : null,
       existing?.deck_image_path,
       values.beginnerProofFile ||
-      (entryDivision !== 'beginner' && existing?.beginner_proof_image_path)
+      (!isBeginner && existing?.beginner_proof_image_path)
         ? existing?.beginner_proof_image_path
         : null,
       values.loginDaysProofFile ||
-      (entryDivision !== 'beginner' && existing?.login_days_proof_image_path)
+      (!isBeginner && existing?.login_days_proof_image_path)
         ? existing?.login_days_proof_image_path
         : null,
     ].filter((path): path is string => Boolean(path))

@@ -1,10 +1,13 @@
+import { DivisionSettingsEditor } from '../components/settings/DivisionSettingsEditor'
+import { copyDivisions, emptyDivisions, normalizeDivisions, divisionError } from '../lib/divisions'
+import type { DivisionSettings } from '../types'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
 import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
 import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
-import { supabase } from '../lib/supabase'
+import { getMockSettingsScenario, setMockSettingsScenario, supabase } from '../lib/supabase'
 import type { CharacterOption, EventEdition } from '../types'
 
 const newEventValue = '__new__'
@@ -21,14 +24,29 @@ const toLocalDateTime = (value: string | null) => {
 }
 
 export function SettingsPage() {
+  const [scenario, setScenario] = useState(getMockSettingsScenario)
+  return <><SettingsView key={scenario} />
+    <details className="page mock-settings-controls"><summary>モック確認用：応募部門の設定</summary>
+      <label>設定シナリオ<select value={scenario} onChange={event => {
+        setMockSettingsScenario(event.target.value); setScenario(event.target.value)
+      }}><option value="normal">通常</option><option value="save-error">保存失敗</option><option value="usage-error">回答件数の取得失敗</option><option value="empty">開催回なし（新規作成を確認）</option></select></label>
+      <p>メモリー内の模擬動作です。保存済み内容は画面移動・再ログインで保持し、再読み込みで初期化します。</p>
+    </details></>
+}
+
+function SettingsView() {
   const { session } = useAuth()
+  const [divisions, setDivisions] = useState<DivisionSettings>(emptyDivisions)
+  const [usageResult, setUsageResult] = useState<{ eventId: string; counts: Record<string, number>; error: string } | null>(null)
   const [rules, setRules] = useState('')
   const [eventName, setEventName] = useState('')
+  const [rankingPublished, setRankingPublished] = useState(false)
   const [submissionStart, setSubmissionStart] = useState('')
   const [submissionEnd, setSubmissionEnd] = useState('')
   const [characters, setCharacters] = useState<CharacterOption[]>([])
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  const usage = selectedEventId === newEventValue ? {} : usageResult?.eventId === selectedEventId && !usageResult.error ? usageResult.counts : null
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [rulesDraft, setRulesDraft] = useState('')
   const [rulesSourceEventId, setRulesSourceEventId] = useState('')
@@ -60,8 +78,10 @@ export function SettingsPage() {
   useEffect(() => {
     setPageImageFiles({ login: null, entry: null })
     if (selectedEventId === newEventValue) {
+      setDivisions(events[0] ? copyDivisions(events[0].division_settings) : emptyDivisions())
       setRules('')
       setEventName('')
+      setRankingPublished(false)
       setSubmissionStart('')
       setSubmissionEnd('')
       setCharacters(emptyCharacters())
@@ -69,16 +89,32 @@ export function SettingsPage() {
     }
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected) return
+    setDivisions(copyDivisions(selected.division_settings))
     setRules(selected.rules_description)
     setEventName(selected.name)
+    setRankingPublished(Boolean(selected.ranking_published))
     setSubmissionStart(toLocalDateTime(selected.submission_start_at))
     setSubmissionEnd(toLocalDateTime(selected.submission_end_at))
     setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
   }, [events, selectedEventId])
 
+  useEffect(() => {
+    if (!selectedEventId || selectedEventId === newEventValue) return
+    let current = true
+    void supabase.rpc('get_event_division_usage', { p_event_id: selectedEventId }).then(({ data, error }) => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: data ?? {}, error: error ? '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' : '' })
+    }).catch(() => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: {}, error: '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' })
+    })
+    return () => { current = false }
+  }, [selectedEventId, events])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!session || rules.length > maxRulesLength) return
+    const normalizedDivisions = normalizeDivisions(divisions)
+    const invalidDivisions = divisionError(normalizedDivisions)
+    if (invalidDivisions) { setError(invalidDivisions); return }
     if (!eventName.trim()) {
       setError('開催回の名称を入力してください。')
       return
@@ -105,6 +141,8 @@ export function SettingsPage() {
     setError('')
     const values = {
       name: eventName.trim(),
+      division_settings: normalizedDivisions,
+      ranking_published: rankingPublished,
       rules_description: rules,
       submission_start_at: submissionStart ? new Date(submissionStart).toISOString() : null,
       submission_end_at: submissionEnd ? new Date(submissionEnd).toISOString() : null,
@@ -210,13 +248,13 @@ export function SettingsPage() {
         {loading ? (
           <div className="spinner" />
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={submit}><fieldset className="settings-form-fields" disabled={submitting}>
             <fieldset className="settings-section">
               <legend>開催回</legend>
               <div className="form-grid">
                 <label>
                   編集する開催回
-                  <select value={selectedEventId} onChange={(event) => { setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
+                  <select value={selectedEventId} onChange={(event) => { setPageImageFiles({ login: null, entry: null }); setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
                     <option value={newEventValue}>新規開催</option>
                   </select>
@@ -231,6 +269,11 @@ export function SettingsPage() {
                   この開催回を回答受付対象にする
                 </button>
               </div>
+              <label className="ranking-publication-toggle">
+                <input type="checkbox" checked={rankingPublished} onChange={(event) => setRankingPublished(event.target.checked)} />
+                ランキングを公開する
+              </label>
+              <small>ログインしたユーザーに、この開催回のランキングを公開します。「設定を保存」で反映されます。</small>
             </fieldset>
             <fieldset className="settings-section">
               <legend>応募期間</legend>
@@ -305,6 +348,7 @@ export function SettingsPage() {
                 <small>強化月間の2枠に割り当てるキャラクターを選択します。同じキャラクターは重複して選択できません。</small>
                 </label>
             </fieldset>
+            <DivisionSettingsEditor key={selectedEventId} value={divisions} onChange={setDivisions} usage={usage} usageError={usageResult?.eventId === selectedEventId ? usageResult.error : ''} />
             <div className="settings-section rules-setting-row">
               <div>
                 <strong>ルール説明</strong>
@@ -319,7 +363,7 @@ export function SettingsPage() {
                 {submitting ? '保存中…' : '設定を保存'}
               </button>
             </div>
-          </form>
+          </fieldset></form>
         )}
       </section>
       {showRulesModal && (

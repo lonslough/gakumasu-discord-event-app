@@ -46,11 +46,9 @@ export function Header() {
             ユーザー登録
           </NavLink>
         )}
-        {isAdmin && (
-          <NavLink to="/admin/responses" onClick={() => setMenuOpen(false)}>
-            回答結果
-          </NavLink>
-        )}
+        <NavLink to="/admin/responses" onClick={() => setMenuOpen(false)}>
+          ランキング
+        </NavLink>
         {isAdmin && (
           <NavLink to="/admin/settings" onClick={() => setMenuOpen(false)}>
             設定
