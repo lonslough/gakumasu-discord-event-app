@@ -27,6 +27,7 @@
 | submission_start_at / submission_end_at | nullable timestamptz、両方あるときstart < end |
 | character_options | 必須jsonb配列、異なる許可IDを2つ保持 |
 | is_active | boolean、既定false、true行は部分一意indexで最大1行 |
+| ranking_published | 必須boolean、既定false。一般向けランキング公開。既存回も追加migrationで非公開となり、管理者が明示保存した回だけ公開 |
 | page_images_path | nullable text、値があるなら `id/page-images.zip` に一致 |
 | created_at / updated_at | 必須timestamptz、既定now() |
 | updated_by | nullable UUID、profiles参照 |
@@ -99,6 +100,8 @@ anonから主要テーブルへの権限を取り消します。is_adminはprofi
 回答入力の[ポイントRPC](../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql)は新規テーブルを作らず、認証済み本人の保存済み回答を基準に同じ開催回・キャラクター・応募部門の確認済み得点から直前の1人の得点だけを返します。受付中のactive回に限定し、本人に順位がない場合や期間外の得点は返しません。SECURITY DEFINERで内部集計しますが、既存のsubmissions・submission_reviewsのRLSは変更せず、他人の回答や管理メモへの直接SELECTは引き続き拒否します。実行権限はauthenticatedのみ、auth.uid()が空の場合も拒否します。データ移行・既存回答の書き換えはありません。
 
 ## 現行挙動の注意点
+
+公開ランキングの[追加migration](../supabase/migrations/20261123000000_add_public_rankings.sql)はevent_editionsにranking_publishedを追加し、認証必須・公開条件付きの2RPCを提供します。受付期間・is_activeは公開条件に含めません。管理者の既存UPDATEポリシーを使い、一般ユーザーは公開フラグを更新できません。submissions、submission_reviews、profiles、Storageの既存権限は維持し、回答ID・Auth ID・管理者メモ・画像パス等を一般用レスポンスに含めません。[公開ランキングDBテスト](../supabase/tests/public_rankings.sql)で38項目と既存DBテスト49項目をローカル検証済み。本番への適用は未実施です。
 
 - list_user_summariesは全開催回の回答をuser_idのみで結合するため複数行になり、結合後100行に制限されます。
 - キャラクター変更後も既存回答のcategoryは自動移行しません。同じcategoryの再保存は検査が早期returnします。

@@ -39,7 +39,7 @@ docs/
 | `/entry` | ログインユーザー（管理者も可） | [回答入力](screens/entry.md) |
 | `/history` | ログインユーザー（管理者も本人分のみ） | [参加履歴](screens/history.md) |
 | `/admin/users` | 管理者 | [ユーザー登録](screens/admin-users.md) |
-| `/admin/responses` | 管理者 | [回答結果](screens/admin-responses.md) |
+| `/admin/responses` | ログインユーザー。一般は公開回のランキングのみ、管理者は全回と既存管理機能 | [ランキング（旧回答結果）](screens/admin-responses.md) |
 | `/admin/settings` | 管理者 | [設定](screens/admin-settings.md) |
 | `/admin/rules` | 管理者。設定画面へ転送 | [設定](screens/admin-settings.md) |
 | `*` | `/entry` へ転送後、認証ガードを適用 | [共通ルーティング](architecture.md) |
@@ -49,6 +49,8 @@ docs/
 2026-10-20: 回答入力に本人の1つ上の順位のポイント表示と限定RPCを追加。全6画面・旧URL・未定義URLの対応は既存Routes.tsxと照合し、ルート追加・変更はありません。自動検査・ローカルDB/APIは確認済み、実ブラウザーによる描画・手動操作は保留です。[検証記録](verification.md)を参照してください。
 
 ## 開発スキルからの参照
+
+2026-11-23: モックv7承認後に公開ランキングを実装。全6画面・所属モーダル・旧admin/rulesと未定義URLを再照合し、ランキングだけをAdminOnlyの外へ移しました。公開設定は設定画面内、別ルート・モーダルは追加していません。UIテスト130件、DB87件、実HTTP28項目、lint/build成功。ブラウザー操作の利用拒否により全画面の手動回帰・PC/スマートフォン描画は保留です。[検証記録](verification.md)を参照してください。
 
 [gakumasu-dev](../.agents/skills/gakumasu-dev/SKILL.md) はこの索引から共通設計と対象画面を読み、データ変更時はdata-model.mdとapi.md、画像変更時はimages.mdを参照します。現在の配置はスキル内の正本設計書規約に一致します。
 

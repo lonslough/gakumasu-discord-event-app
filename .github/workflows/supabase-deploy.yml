@@ -54,6 +54,9 @@ jobs:
       - name: Test entry ranking score access
         run: supabase test db supabase/tests/entry_rank_neighbor.sql
 
+      - name: Test published ranking access
+        run: supabase test db supabase/tests/public_rankings.sql
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.4.5

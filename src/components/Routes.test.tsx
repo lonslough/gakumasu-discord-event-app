@@ -33,9 +33,22 @@ describe('認証と参加履歴の遷移', () => {
     fireEvent.click(screen.getByRole('link', { name: '参加履歴' }))
     expect(await screen.findByRole('heading', { name: '履歴画面' })).toBeInTheDocument()
   })
-  it.each(['/admin/users', '/admin/responses', '/admin/settings', '/admin/rules'])('user は %s に入れない', async path => {
+  it.each(['/admin/users', '/admin/settings', '/admin/rules'])('user は %s に入れない', async path => {
     show(path)
     expect(await screen.findByRole('heading', { name: '入力画面' })).toBeInTheDocument()
+  })
+  it.each(['user', 'admin'])('%s はランキングのメニューから既存URLへ移動できる', async role => {
+    auth.profile.role = role
+    show('/entry')
+    await screen.findByRole('heading', { name: '入力画面' })
+    fireEvent.click(screen.getByRole('link', { name: 'ランキング' }))
+    expect(await screen.findByRole('heading', { name: '結果画面' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '回答結果' })).not.toBeInTheDocument()
+  })
+  it('未認証でランキングを開くとログインへ転送', async () => {
+    auth.session = null
+    show('/admin/responses')
+    expect(await screen.findByRole('heading', { name: 'ログイン画面' })).toBeInTheDocument()
   })
   it.each([
     ['/admin/users', '登録画面'], ['/admin/responses', '結果画面'],

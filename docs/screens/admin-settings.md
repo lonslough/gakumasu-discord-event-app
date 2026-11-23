@@ -14,6 +14,7 @@
 | --- | --- |
 | 編集する開催回 | 既存回＋新規開催。新規は名称・ルール・日時・2キャラクターを空へ初期化 |
 | 名称 | trim後必須、入力maxLength=100 |
+| ランキング公開 | 開催回欄のチェック。既存回・新規回とも初期非公開。「設定を保存」で他設定と保存。受付期間・受付対象切替とは独立 |
 | 応募期間 | datetime-local、双方任意。両方ある場合start < end。ブラウザー時刻で表示、ISOへ変換して保存 |
 | ページ画像 | login/entryの2枚。片方だけ指定はエラー。新規作成時も未指定なら開催回自体は保存可能 |
 | キャラクター | 13名から重複しない2名。入れ替えボタンあり |
@@ -23,7 +24,9 @@
 
 ## 設定保存
 
-session、ルール長、名称、2キャラクター、期間、画像ペアを検証後、名称・ルール・日時・character_options・updated_byをevent_editionsへINSERTまたはUPDATEします。新規時は返却idを使用します。
+session、ルール長、名称、2キャラクター、期間、画像ペアを検証後、名称・ルール・日時・character_options・ranking_published・updated_byをevent_editionsへINSERTまたはUPDATEします。新規時は返却idを使用します。
+
+「ランキングを公開する」の変更だけでは保存しません。回切替で保存済みの値を読み直し、未保存変更を破棄します。保存失敗時はチェックを保持してエラー表示。設定を保存した後は再訪・再読込・再ログインでもDBの公開設定を読み込みます。管理者のみ更新でき、一般ユーザーの直接UPDATEも既存RLSが拒否します。ランキング側への反映は次回のデータ取得時です。
 
 画像ペアがあればZIPをStorageへupsertし、page_images_pathを更新。成功後は一覧を再取得して保存した回を選択し、作成／保存メッセージを表示します。DB成功後の画像失敗は「開催回の設定は保存しましたが…」と部分成功を通知し、開催回を消去しません。
 
@@ -55,3 +58,5 @@ session、ルール長、名称、2キャラクター、期間、画像ペアを
 ## 実装根拠
 
 [SettingsPage.tsx](../../src/pages/SettingsPage.tsx)、[RulesEditorModal.tsx](../../src/components/settings/RulesEditorModal.tsx)、[PageImageSettings.tsx](../../src/components/settings/PageImageSettings.tsx)、[ImageCropModal.tsx](../../src/components/settings/ImageCropModal.tsx)、[characters.ts](../../src/lib/characters.ts)、[localPageImages.ts](../../src/lib/localPageImages.ts)。
+
+2026-11-23: 公開設定を含む[設定テスト](../../src/pages/SettingsPage.test.tsx)11件成功。ルートはadmin限定を維持し、共有Headerから一般/管理とも[ランキング](admin-responses.md)へ移動できます。DB・実HTTPで公開保存、一般更新拒否、解除後の取得拒否を確認。実ブラウザーの手動操作・画像操作は保留。[検証記録](../verification.md)。

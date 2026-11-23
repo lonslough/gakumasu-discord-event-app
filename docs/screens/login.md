@@ -34,4 +34,6 @@ IDは3〜32文字、半角英数字・ピリオド・ハイフン・アンダー
 
 ## 実装根拠
 
+2026-11-23再照合: ログインフォーム・成功時のentry転送は維持。未認証のランキングURLもログインへ転送され、ログイン後は既存同様entryへ移動します。認証後Headerの「ランキング」から公開回を閲覧できます。ルートテストとローカルAuth HTTPを確認、実ブラウザー手動操作は保留。[検証記録](../verification.md)。
+
 [LoginPage.tsx](../../src/pages/LoginPage.tsx)、[ThemeToggle.tsx](../../src/components/ThemeToggle.tsx)、[validation.ts](../../src/lib/validation.ts)、[AuthContext.tsx](../../src/contexts/AuthContext.tsx)、[siteConfig.ts](../../src/lib/siteConfig.ts)。

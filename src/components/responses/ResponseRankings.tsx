@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
-import type { AdminSubmission, Category, CharacterOption, EntryDivision } from '../../types'
+import type { Category, CharacterOption, EntryDivision } from '../../types'
 import { entryDivisionName } from './labels'
 
+export interface RankingDisplayRow {
+  id: string
+  discord_username: string
+  producer_name: string
+  review: { confirmed_score: number | null } | null
+}
+
 interface ResponseRankingsProps {
-  rankings: Record<Category, Record<EntryDivision, AdminSubmission[]>>
+  rankings: Record<Category, Record<EntryDivision, RankingDisplayRow[]>>
   characters: CharacterOption[]
 }
 

@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   download: vi.fn(),
   savedLogin: null as Blob | null,
   savedEntry: null as Blob | null,
+  updateError: false,
+  insert: vi.fn(),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -55,11 +57,13 @@ vi.mock('../lib/supabase', () => ({
         }),
         update: (values: Partial<EventEdition>) => ({
           eq: async (_column: string, id: string) => {
+            if (mocks.updateError) return { error: new Error('update failed') }
             const target = mocks.events.find((event) => event.id === id)
             if (target) Object.assign(target, values, { updated_at: `2026-10-11T01:00:${String(++mocks.updateCounter).padStart(2, '0')}Z` })
             return { error: null }
           },
         }),
+        insert: (values: Partial<EventEdition>) => ({ select: () => ({ single: () => mocks.insert(values) }) }),
       }
     },
     storage: {
@@ -82,6 +86,7 @@ const event = (id: string, name: string, isActive: boolean): EventEdition => ({
   character_options: characters,
   page_images_path: null,
   is_active: isActive,
+  ranking_published: false,
   created_at: isActive ? '2026-01-01T00:00:00Z' : '2026-02-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 })
@@ -171,6 +176,72 @@ describe('SettingsPage ページ画像', () => {
     )
     expect(URL.createObjectURL).toHaveBeenCalledWith(mocks.savedLogin)
     expect(URL.createObjectURL).toHaveBeenCalledWith(mocks.savedEntry)
+  })
+})
+
+describe('開催回のランキング公開設定', () => {
+  beforeEach(() => {
+    mocks.events = [event('first', '一つ目', true), event('second', '二つ目', false)]
+    mocks.events[1].ranking_published = true
+    mocks.updateError = false
+    mocks.insert.mockReset()
+    mocks.insert.mockImplementation(async (values: Partial<EventEdition>) => {
+      mocks.events.push({ ...event('new-event', '新規', false), ...values })
+      return { data: { id: 'new-event' }, error: null }
+    })
+  })
+  afterEach(() => { mocks.updateError = false })
+
+  it('保存前は反映せず、保存後は再訪しても公開設定を表示する', async () => {
+    const view = render(<SettingsPage />)
+    await waitFor(() => expect(screen.getByLabelText('開催回の名称')).toHaveValue('一つ目'))
+    const checkbox = await screen.findByRole('checkbox', { name: 'ランキングを公開する' })
+    expect(checkbox).not.toBeChecked()
+    fireEvent.click(checkbox)
+    expect(mocks.events[0].ranking_published).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
+    await screen.findByText('設定を保存しました。')
+    expect(mocks.events[0].ranking_published).toBe(true)
+    view.unmount()
+    render(<SettingsPage />)
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'ランキングを公開する' })).toBeChecked())
+  })
+
+  it('開催回を切り替えると未保存の変更を破棄し保存済みの設定を表示する', async () => {
+    render(<SettingsPage />)
+    await waitFor(() => expect(screen.getByLabelText('開催回の名称')).toHaveValue('一つ目'))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'ランキングを公開する' }))
+    const select = screen.getByLabelText('編集する開催回')
+    fireEvent.change(select, { target: { value: 'second' } })
+    expect(screen.getByRole('checkbox', { name: 'ランキングを公開する' })).toBeChecked()
+    fireEvent.change(select, { target: { value: 'first' } })
+    expect(screen.getByRole('checkbox', { name: 'ランキングを公開する' })).not.toBeChecked()
+  })
+
+  it('保存失敗時に選択を保持し公開済みとは扱わない', async () => {
+    mocks.updateError = true
+    render(<SettingsPage />)
+    await waitFor(() => expect(screen.getByLabelText('開催回の名称')).toHaveValue('一つ目'))
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'ランキングを公開する' }))
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
+    await screen.findByText('設定の保存に失敗しました。')
+    expect(screen.getByRole('checkbox', { name: 'ランキングを公開する' })).toBeChecked()
+    expect(mocks.events[0].ranking_published).toBe(false)
+  })
+
+  it('新規回の初期値は非公開で、公開を指定して作成できる', async () => {
+    render(<SettingsPage />)
+    await waitFor(() => expect(screen.getByLabelText('開催回の名称')).toHaveValue('一つ目'))
+    const select = await screen.findByLabelText('編集する開催回')
+    fireEvent.change(select, { target: { value: '__new__' } })
+    expect(screen.getByRole('checkbox', { name: 'ランキングを公開する' })).not.toBeChecked()
+    fireEvent.change(screen.getByLabelText('開催回の名称'), { target: { value: '公開する新規回' } })
+    fireEvent.change(screen.getByLabelText('キャラクター 1'), { target: { value: 'saki' } })
+    fireEvent.change(screen.getByLabelText('キャラクター 2'), { target: { value: 'temari' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ランキングを公開する' }))
+    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }))
+    await screen.findByText('新しい開催回を作成しました。')
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ name: '公開する新規回', ranking_published: true }))
   })
 })
 

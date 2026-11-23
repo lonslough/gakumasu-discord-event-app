@@ -13,6 +13,8 @@ Supabase JS SDKを使用し、DB操作は認証セッションとRLS、Storage�
 | get_event_settings | なし | active開催回のevent_id、event_name、rules_description、開始/終了、character_options、server_now、accepting_submissions。該当行なしはnull |
 | list_my_submission_history | なし | 本人の参加済み全開催回の回答・開催回名/is_active/character_options・確認状態・確認済み得点のJSON配列。開催回作成日時/ID降順。0件は空配列 |
 | get_my_rank_neighbor | p_event_id UUID（必須） | `{status, higher_score}`。本人の保存済み回答の直前順位の確認済み得点だけを返す。statusはranked / first / unranked / closed |
+| list_public_ranking_events | なし | 公開回のid/name/is_active/character_options/created_atだけを作成日時降順で返すJSON配列。0件は空配列。認証必須 |
+| get_public_rankings | p_event_id UUID（必須） | 公開回のcategory/entry_division/rank/discord_username/producer_name/confirmed_scoreだけを返すJSON配列。各キャラクター・部門の上位10名。認証必須 |
 | is_submission_period_open | なし / p_event_id UUID | activeかつ開始以上・終了以下。null日時は制限なし、対象なしはfalse。引数なしはactiveへ委譲 |
 | list_admin_submissions | p_event_id UUID（省略時active） | 回答・profile.user_id・reviewをJSON配列化、updated_at降順。非adminは空配列 |
 | list_user_summaries | なし | プロフィールとhas_submission / last_submitted_at。登録日時降順、結合後100行。非adminは空配列 |
@@ -27,6 +29,14 @@ list_my_submission_historyはauthenticatedのみ実行可能なsecurity definer�
 get_my_rank_neighborはauthenticatedのみ実行可能なsecurity definer関数（search_path空）。auth.uid()がnullなら42501で拒否します。p_event_idがnull・存在しない・非active・受付期間外ならclosedで得点はnull。期間判定は既存is_submission_period_openを使用し、開始・終了ちょうどを含みます。
 
 本人の保存済み回答と同じ開催回・キャラクター・応募部門のverifiedかつ得点非nullを、得点降順・submissions.updated_at昇順に全件順位付けし、本人の直前の得点を返します。1位はfirst、未回答・ランキング対象外はunranked。ranked以外のhigher_scoreはnullです。任意のuser_id・キャラクター・部門は指定できず、管理者も本人基準です。名前・画像・順位一覧・管理者メモを含めず、既存RLSを緩和しません。[追加SQL](../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql) / [DB検証](../supabase/tests/entry_rank_neighbor.sql)
+
+## 公開ランキングの取得境界
+
+上記2RPCはSECURITY DEFINER、search_path空。PUBLIC/anonの実行権限を取り消し、authenticatedにだけ付与します。auth.uid()がnullなら42501/authentication required。get_public_rankingsは非公開・不存在・引数nullも42501/ranking is not publishedで拒否します。管理者も公開APIの公開条件に従い、非公開回の確認・CSVには既存管理APIを使用します。
+
+ランキングは公開条件を確認した回の現在の対象キャラクターだけを、verifiedかつconfirmed_score非nullで集計。category/entry_divisionごとに得点降順・submissions.updated_at昇順のrow_numberで順位を付け、10位までをサーバーで抽出します。0点も対象。同点は既存ランキングと同じ扱いで、同順位へのまとめはありません。返却順はcategory/entry_division/rank。公開された空回は空配列です。
+
+公開は受付開始前・受付中・終了後・inactive回でも可能。公開取消は次回取得から拒否します。ログインID、回答ID、Auth ID、画像パス、管理者メモ、確認者、回答時刻を含めません。既存のテーブル・Storage RLS、本人限定の履歴/ポイントRPC、管理一覧RPCを緩めません。一般向け画面にはモックの確認用UIやメモリーアダプターは含まれません。[SQL](../supabase/migrations/20261123000000_add_public_rankings.sql) / [DB検証](../supabase/tests/public_rankings.sql) / [画面](screens/admin-responses.md)。
 
 ## Edge Functions共通
 

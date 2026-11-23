@@ -3,6 +3,7 @@ import {
   ReviewModal,
 } from '../components/responses/ResponseModals'
 import { ResponseRankings } from '../components/responses/ResponseRankings'
+import { PublicRankings } from '../components/responses/PublicRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
 import { entryDivisionName, statusName } from '../components/responses/labels'
@@ -34,7 +35,13 @@ import type {
 const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 export function ResponsesPage() {
-  const { session } = useAuth()
+  const { profile, loading } = useAuth()
+  if (loading || !profile) return <main className="center-page"><div className="spinner" aria-label="読み込み中" /></main>
+  return profile.role === 'admin' ? <AdminResponsesView /> : <PublicRankings />
+}
+
+function AdminResponsesView() {
+  const { session, profile } = useAuth()
   const [rows, setRows] = useState<AdminSubmission[]>([])
   const [registered, setRegistered] = useState(0)
   const [characters, setCharacters] = useState<CharacterOption[]>(defaultCharacterOptions)
@@ -118,7 +125,7 @@ export function ResponsesPage() {
   }
 
   const saveReview = async () => {
-    if (!editing || !session) return
+    if (!editing || !session || profile?.role !== 'admin') return
     const canEditVerification = hasResultImage(editing)
     if (canEditVerification && !isValidConfirmedScore(score))
       return setError('評価値は0以上の整数で入力してください。')
@@ -156,6 +163,7 @@ export function ResponsesPage() {
   }
 
   const downloadCsv = () => {
+    if (profile?.role !== 'admin') return
     const header = [
       'ユーザーID',
       'サーバー内ユーザーネーム',
@@ -200,7 +208,7 @@ export function ResponsesPage() {
       <div className="page-title">
         <div>
           <p className="eyebrow">RESULTS & VERIFICATION</p>
-          <h1>回答結果</h1>
+          <h1>ランキング</h1>
           <p>提出内容の確認、評価値の登録、集計を行います。</p>
         </div>
         <button className="button primary" onClick={downloadCsv}>
