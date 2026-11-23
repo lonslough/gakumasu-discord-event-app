@@ -73,3 +73,5 @@ adminだけが使用可能。管理ビュー内にだけボタンを描画し、
 [ResponsesPage.tsx](../../src/pages/ResponsesPage.tsx)、[adminResponses.ts](../../src/lib/adminResponses.ts)、[ranking.ts](../../src/lib/ranking.ts)、[ResponseStats.tsx](../../src/components/responses/ResponseStats.tsx)、[ResponseRankings.tsx](../../src/components/responses/ResponseRankings.tsx)、[ResponsesTable.tsx](../../src/components/responses/ResponsesTable.tsx)、[ResponseModals.tsx](../../src/components/responses/ResponseModals.tsx)、[useReviewImages.ts](../../src/hooks/useReviewImages.ts)。
 
 一般向けは[PublicRankings.tsx](../../src/components/responses/PublicRankings.tsx)、[限定RPC](../../supabase/migrations/20261123000000_add_public_rankings.sql)、[画面テスト](../../src/pages/ResponsesPage.test.tsx)、[DBテスト](../../supabase/tests/public_rankings.sql)。2026-11-23: 画面・DB・実HTTPの検証済み。PC／スマートフォンの実描画・実CSV保存と全画面の手動操作はブラウザー操作の利用拒否により保留。[検証記録](../verification.md)を参照。
+
+2026-11-23 履歴順位追加時の全画面照合: ResponsesPage/PublicRankingsの公開回取得、管理者一覧・レビュー/画像モーダル・CSVを照合。公開ランキングは上位10名、参加履歴は非公開回も含む本人の全順位を取得する別経路です。管理者画面の確認状態は従来どおり表示します。 全152テストで既存の画面/ルートを回帰確認。ブラウザー実描画・全画面手動操作は保留。[検証記録](../verification.md)。

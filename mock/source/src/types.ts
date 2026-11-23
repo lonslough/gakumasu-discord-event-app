@@ -81,6 +81,7 @@ export interface Review {
 }
 
 export interface SubmissionHistory extends Omit<Submission, 'user_id'> {
+  rank: number | null
   event_name: string
   is_active: boolean
   character_options: CharacterOption[]

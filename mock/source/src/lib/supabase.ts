@@ -48,6 +48,53 @@ for (const event of events.filter(event => !event.is_active)) {
  }
 }
 
+// v9: user1's history demonstrates 2nd, 1st (zero points), 3rd, 4th,
+// pending and missing review. All editions remain unpublished initially.
+reviews.find(r => r.submission_id === 'submission-past-1').confirmed_score = 0
+for (const [eventId, peerCount] of [['past-2', 2], ['past-3', 3]]) {
+ const mine = submissions.find(s => s.event_id === eventId && s.user_id === 'user1')
+ for (let i = 0; i < peerCount; i++) {
+  const userId = 'user' + (i + 2)
+  let peer = submissions.find(s => s.event_id === eventId && s.user_id === userId)
+  if (!peer) {
+   peer = {...mine, id: 'submission-' + eventId + '-peer-' + userId, user_id: userId,
+    discord_username: '順位確認サンプル' + (i + 1), producer_name: 'プロデューサー' + (i + 2)}
+   submissions.push(peer)
+  }
+  peer.category = mine.category
+  peer.entry_division = mine.entry_division
+  let review = reviews.find(r => r.submission_id === peer.id)
+  if (!review) {
+   review = {...reviews[0], submission_id: peer.id}
+   reviews.push(review)
+  }
+  Object.assign(review, {verification_status: 'verified', confirmed_score: 30000 + i * 1000})
+ }
+}
+Object.assign(reviews.find(r => r.submission_id === 'submission-past-4-1'), {verification_status: 'pending', confirmed_score: null})
+Object.assign(reviews.find(r => r.submission_id === 'submission-past-4-2'), {verification_status: 'invalid', confirmed_score: null})
+reviews.splice(reviews.findIndex(r => r.submission_id === 'submission-past-5-1'), 1)
+reviews.find(r => r.submission_id === 'submission-past-5-2').confirmed_score = null
+
+function submissionHistory() {
+ return submissions.filter(s => s.user_id === session.user.id).map(s => {
+  const e = events.find(e => e.id === s.event_id)
+  const r = reviews.find(r => r.submission_id === s.id)
+  const rows = submissions.filter(row => row.event_id === e.id)
+   .map(row => ({...row, review: reviews.find(review => review.submission_id === row.id) ?? null}))
+  const index = e.character_options.some(c => c.id === s.category)
+   ? rankedByCategoryAndDivision(rows, s.category, s.entry_division).findIndex(row => row.id === s.id) : -1
+  const {user_id, ...entry} = s
+  return {...entry, event_name: e.name, is_active: e.is_active, character_options: e.character_options,
+   verification_status: r?.verification_status ?? 'pending',
+   confirmed_score: r?.verification_status === 'verified' ? r.confirmed_score : null,
+   rank: index < 0 ? null : index + 1}
+ }).sort((a, b) => {
+  const eventA = events.find(e => e.id === a.event_id), eventB = events.find(e => e.id === b.event_id)
+  return eventB.created_at.localeCompare(eventA.created_at) || eventB.id.localeCompare(eventA.id)
+ })
+}
+
 const tables = {profiles:mockUsers,event_editions:events,submissions,submission_reviews:reviews}
 const blobs = new Map()
 export function seedMockBlob(path, blob) { blobs.set(path,blob) }
@@ -128,7 +175,7 @@ export const supabase = {
  }
  if(name==='get_event_settings') return active ? ok({...active,...entryPeriod(active),event_id:active.id,event_name:active.name,server_now:now()}) : ok(null)
  if(name==='get_my_rank_neighbor') return myRankNeighbor(args.p_event_id)
- if(name==='list_my_submission_history') return ok(submissions.filter(s=>s.user_id===session.user.id).map(s=>{const e=events.find(e=>e.id===s.event_id),r=reviews.find(r=>r.submission_id===s.id); const {user_id,...entry}=s;return {...entry,event_name:e.name,is_active:e.is_active,character_options:e.character_options,verification_status:r?.verification_status??'pending',confirmed_score:r?.verification_status==='verified'?r.confirmed_score:null}}).sort((a,b)=>b.updated_at.localeCompare(a.updated_at)))
+ if(name==='list_my_submission_history') return ok(submissionHistory())
  if(!admin()) return denied()
  if(name==='count_registered_users') return ok(mockUsers.filter(u=>u.role==='user').length)
  if(name==='list_admin_submissions') return ok(submissions.filter(s=>s.event_id===args.p_event_id).map(s=>({...s,profile:{user_id:mockUsers.find(u=>u.id===s.user_id).user_id},review:reviews.find(r=>r.submission_id===s.id)??null})))

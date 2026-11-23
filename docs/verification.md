@@ -135,3 +135,14 @@ Actionsのdb push --linkedがIPv6へ接続して失敗するため、Management 
 ### siteConfigテストのCI配信パス修正
 
 2026-11-23: GitHub Actions相当（GITHUB_ACTIONS=true、GITHUB_REPOSITORY=lonslough/gakumasu-discord-event-app）で、siteConfig.test.tsxの期待URLが/site-config.jsonに固定されていた失敗を再現。BASE_URLが/の場合と/gakumasu-discord-event-app/の場合をパラメーター化して検査するよう修正。通常ローカルで対象5件、Node22のCI相当設定で全143件成功。本体の取得処理・表示仕様は変更していません。
+
+
+## 2026-11-23：参加履歴の本人順位（モックv10承認後）
+
+参加履歴の得点直後へ順位を追加、確認状態の独立した列を削除。新規migrationで同じ開催回・キャラクター・応募部門の確認済み得点を順位付けし、公開状態・受付期間を問わず本人結果だけを返す。[画面設計](screens/history.md) / [RPC](api.md)。
+
+既存Node22環境で18ファイル152テスト（履歴18、画像4、Routes14と既存全画面）・lint・型検査/ビルド成功。ローカルSupabaseに新規migrationのみ適用、resetなし。DB lint成功。pg_proveで4SQL109項目（履歴35、既存74）成功し、全fixture/設定変更はrollback。DBで1/2/3/4/11位・同点更新順・0点・分類分離・未確認/無効/得点なし/レビューなし・設定外キャラ・公開/非公開・inactive/終了済み・本人/管理者/匿名・機密なし・更新後再取得を確認。
+
+実HTTP37項目成功、書き込み0。本人の全参加回答と順位が管理者側全回答の期待集計に一致し、非公開回も取得、再取得一致、管理者本人限定・匿名拒否・review RLSを確認。全8URLのHTTP200も確認したが、認証転送や実描画を証明するものではない。既存heic2anyのchunk警告のみ、検査失敗なし。
+
+全6画面・所属モーダル・旧/admin/rules・未定義URLをソースと照合し、各画面の正本を更新。Chromeの操作接続利用拒否が継続しており、PC/スマートフォン・テーマ別描画、実ブラウザー手動操作、全画面手動回帰は検証保留。自動/DB/HTTP成功を手動確認済みとは扱わない。本番への適用・push・デプロイは未実施。
