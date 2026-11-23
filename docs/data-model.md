@@ -111,3 +111,7 @@ anonから主要テーブルへの権限を取り消します。is_adminはprofi
 ## 実装根拠
 
 [初期スキーマ](../supabase/migrations/20260724000000_initial_schema.sql)、[応募部門](../supabase/migrations/20260725000000_add_entry_divisions.sql)、[初心者証明](../supabase/migrations/20260726020000_add_login_days_evidence.sql)、[旧設定](../supabase/migrations/20260726040000_add_event_rules.sql)、[レビューリセット](../supabase/migrations/20260727000000_reset_review_on_submission_change.sql)、[service_role付与](../supabase/migrations/20260728000000_grant_profiles_to_service_role.sql)、[応募期間](../supabase/migrations/20260815000000_add_submission_period.sql)、[キャラクター制約](../supabase/migrations/20260815010000_add_character_options.sql)、[画像保護](../supabase/migrations/20260816000000_protect_reviewed_submission_images.sql)、[開催回](../supabase/migrations/20260816010000_add_event_editions.sql)、[期間判定の委譲](../supabase/migrations/20260816020000_route_period_check_to_active_event.sql)、[開催回トリガー](../supabase/migrations/20260816030000_validate_event_edition_characters.sql)、[ページ画像](../supabase/migrations/20260816040000_add_event_page_images.sql)、[最終実行権限](../supabase/migrations/20260816050000_allow_admin_local_event_activation.sql)。
+
+## 参加履歴順位の追加（2026-11-23）
+
+[新規migration](../supabase/migrations/20261123010000_add_submission_history_ranks.sql)で本人履歴RPCを更新。テーブル・RLS・既存データは変更せず、確認済み得点を開催回/キャラクター/応募部門で順位付けして本人のrankだけを追加します。非公開回の本人順位も返しますが、他人の回答・管理メモの権限は広げません。詳細は[API](api.md)・[参加履歴](screens/history.md)。履歴DB35項目と既存回帰74項目がローカルで成功。ローカルに追加migrationのみ適用済み、本番への適用は未実施です。

@@ -37,3 +37,5 @@ list_user_summariesを初期表示と更新ボタン、成功後に呼びます�
 2026-11-23再照合: 本画面・発行/再発行モーダルと管理者限定ルートは維持。Headerで旧回答結果の名称だけを「ランキング」へ変更し、同メニューは一般にも表示します。ユーザー登録・設定は引き続き管理者だけ。Routesテストで一般拒否・管理者到達を回帰確認、実ブラウザーの手動操作は保留。[検証記録](../verification.md)。
 
 [UsersPage.tsx](../../src/pages/UsersPage.tsx)、[validation.ts](../../src/lib/validation.ts)、[初期一覧RPC](../../supabase/migrations/20260724000000_initial_schema.sql)、[create-user](../../supabase/functions/create-user/index.ts)、[reset-user-password](../../supabase/functions/reset-user-password/index.ts)。
+
+2026-11-23 履歴順位追加時の全画面照合: UsersPageの管理者限定ルート、発行情報/再発行確認モーダルを照合。本人履歴の順位追加によるユーザー発行・権限変更はありません。 全152テストで既存の画面/ルートを回帰確認。ブラウザー実描画・全画面手動操作は保留。[検証記録](../verification.md)。

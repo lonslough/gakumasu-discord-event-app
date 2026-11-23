@@ -11,7 +11,7 @@ Supabase JS SDKを使用し、DB操作は認証セッションとRLS、Storage�
 | RPC | 入力 | 戻り値・用途 |
 | --- | --- | --- |
 | get_event_settings | なし | active開催回のevent_id、event_name、rules_description、開始/終了、character_options、server_now、accepting_submissions。該当行なしはnull |
-| list_my_submission_history | なし | 本人の参加済み全開催回の回答・開催回名/is_active/character_options・確認状態・確認済み得点のJSON配列。開催回作成日時/ID降順。0件は空配列 |
+| list_my_submission_history | なし | 本人の参加済み全開催回の回答・開催回名/is_active/character_options・確認状態・確認済み得点・本人順位rank（number/null）のJSON配列。開催回作成日時/ID降順。0件は空配列 |
 | get_my_rank_neighbor | p_event_id UUID（必須） | `{status, higher_score}`。本人の保存済み回答の直前順位の確認済み得点だけを返す。statusはranked / first / unranked / closed |
 | list_public_ranking_events | なし | 公開回のid/name/is_active/character_options/created_atだけを作成日時降順で返すJSON配列。0件は空配列。認証必須 |
 | get_public_rankings | p_event_id UUID（必須） | 公開回のcategory/entry_division/rank/discord_username/producer_name/confirmed_scoreだけを返すJSON配列。各キャラクター・部門の上位10名。認証必須 |
@@ -68,3 +68,9 @@ page-images-archiveだけはverify_jwt=falseで、PAGE_DEPLOY_SECRETとX-Deploy-
 ## 実装根拠
 
 [DB関数](../supabase/migrations/20260816010000_add_event_editions.sql)、[初期RPC](../supabase/migrations/20260724000000_initial_schema.sql)、[共通認証](../supabase/functions/_shared/admin.ts)、[GitHub連携](../supabase/functions/_shared/github.ts)、[create-user](../supabase/functions/create-user/index.ts)、[reset-user-password](../supabase/functions/reset-user-password/index.ts)、[activate-event](../supabase/functions/activate-event/index.ts)、[page-images-archive](../supabase/functions/page-images-archive/index.ts)、[config.toml](../supabase/config.toml)。
+
+## 参加履歴の本人順位（2026-11-23）
+
+[list_my_submission_historyの更新](../supabase/migrations/20261123010000_add_submission_history_ranks.sql)はrankを追加します。同じ開催回・キャラクター・応募部門で、設定内キャラクターかつverified/得点非nullを得点降順・回答更新日時昇順のrow_numberで集計。順位は全件を対象とし、11位以下も返します。未確認・無効・得点なし・レビューなし・設定外キャラクターはnull。0点は対象です。
+
+ranking_published・active・受付期間に依存せず本人だけへ返します。本人が参加した分類に集計を限定し、集計後にauth.uid()で本人の回答だけへ結合。既存の取得項目と本人限定・authenticated限定・search_path空・SECURITY DEFINERを維持し、他人の情報・管理メモを追加しません。認証UIDなしは従来どおり空配列、anonは実行権限なし。呼び出しごとの最新データを返し、順位固定保存は行いません。画面は1〜3位/ランク外/—に変換します。
