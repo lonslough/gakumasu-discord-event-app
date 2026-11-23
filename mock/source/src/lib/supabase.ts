@@ -1,4 +1,8 @@
 // In-memory adapter. No backend, browser storage, cookies or service workers.
+import { copyDivisions, divisionError, normalizeDivisions, divisionIds, requiresDivisionProof } from './divisions'
+let settingsScenario = 'normal'
+export const getMockSettingsScenario = () => settingsScenario
+export const setMockSettingsScenario = (value: string) => { settingsScenario = value }
 import { characterRoster } from './characters'
 import { cacheLocalPageImagesFromStorage } from './localPageImages'
 import { rankedByCategoryAndDivision } from './ranking'
@@ -27,10 +31,15 @@ const events = editionSeeds.map((seed, i) => ({
  id: seed.id, name: '第' + seed.number + '回 強化月間',
  rules_description: '対象キャラクターを育成して結果を提出してください。\n一般・スイッチOFF・初心者のいずれかの部門に応募できます。',
  submission_start_at: null, submission_end_at: null,
+ division_settings: copyDivisions(),
  character_options: seed.characters.map(id => structuredClone(characterRoster.find(character => character.id === id))),
  page_images_path: seed.id + '/page-images.zip', is_active: i === 0, ranking_published: false,
  created_at: seed.date, updated_at: seed.date,
 }))
+// A dormant review fixture: activate from settings to inspect sole-division selection.
+events.push({ ...structuredClone(events[0]), id: 'single-division-review', name: 'モック確認：1部門',
+ division_settings: { open: copyDivisions().open }, is_active: false, ranking_published: false,
+ created_at: '2026-04-01T00:00:00+09:00', updated_at: stamp, review_only: true })
 const submissions = [0,1,2,3].map((i)=>({id:'submission'+i,event_id:'current',user_id:'user'+(i+1),discord_username:['星南推し','つばめP','新人プロデューサー','星々のきらめき'][i],producer_name:'プロデューサー'+(i+1),category:i%2?'tsubame':'sena',entry_division:['open','switch_off','beginner','open'][i],score_image_path:'sample-score',deck_image_path:null,beginner_proof_image_path:i===2?'sample-proof':null,login_days_proof_image_path:i===2?'sample-days':null,created_at:stamp,updated_at:stamp}))
 
 const reviews = [{submission_id:'submission0',confirmed_score:25300,verification_status:'verified',admin_note:'確認済み',verified_at:stamp,verified_by:'admin',updated_at:stamp},{submission_id:'submission1',confirmed_score:22100,verification_status:'verified',admin_note:'',verified_at:stamp,verified_by:'admin',updated_at:stamp},{submission_id:'submission3',confirmed_score:null,verification_status:'invalid',admin_note:'画像を確認してください',verified_at:null,verified_by:null,updated_at:stamp}]
@@ -38,7 +47,7 @@ const reviews = [{submission_id:'submission0',confirmed_score:25300,verification
 submissions[3].category = 'sena'
 Object.assign(reviews[2], { confirmed_score: 28000, verification_status: 'verified', admin_note: '', verified_at: stamp, verified_by: 'admin' })
 // Past answers follow the characters and dates of their edition.
-for (const event of events.filter(event => !event.is_active)) {
+for (const event of events.filter(event => !event.is_active && !event.review_only)) {
  for (let i = 0; i < 2; i++) {
   const id = 'submission-' + event.id + '-' + (i + 1)
   submissions.push({ ...submissions[i], id, event_id: event.id,
@@ -85,7 +94,7 @@ function submissionHistory() {
   const index = e.character_options.some(c => c.id === s.category)
    ? rankedByCategoryAndDivision(rows, s.category, s.entry_division).findIndex(row => row.id === s.id) : -1
   const {user_id, ...entry} = s
-  return {...entry, event_name: e.name, is_active: e.is_active, character_options: e.character_options,
+  return {...entry, event_name: e.name, division_settings: e.division_settings, is_active: e.is_active, character_options: e.character_options,
    verification_status: r?.verification_status ?? 'pending',
    confirmed_score: r?.verification_status === 'verified' ? r.confirmed_score : null,
    rank: index < 0 ? null : index + 1}
@@ -129,13 +138,27 @@ function myRankNeighbor(eventId) {
 }
 function query(table) {
  const filters=[]; let operation='select', values, single=false, ordering
- const q={select(){return q},eq(key,value){filters.push([key,value]);return q},order(key,opts){ordering=[key,opts];return q},single(){single=true;return q},maybeSingle(){single=true;return q},insert(v){operation='insert';values=v;return q},update(v){operation='update';values=v;return q},upsert(v){operation='upsert';values=v;return q},then(resolve,reject){return Promise.resolve().then(()=>{
+ const q={select(){return q},eq(key,value){filters.push([key,value]);return q},order(key,opts){ordering=[key,opts];return q},single(){single=true;return q},maybeSingle(){single=true;return q},insert(v){operation='insert';values=v;return q},update(v){operation='update';values=v;return q},upsert(v){operation='upsert';values=v;return q},then(resolve,reject){return Promise.resolve().then(async ()=>{
  if(!session) return denied()
  if(table==='profiles'&&!admin()&&filters.some(([k,v])=>k==='id'&&v!==session.user.id)) return denied()
  if(['event_editions','submission_reviews','profiles'].includes(table)&&operation!=='select'&&!admin()) return denied()
  let rows=tables[table]; if(!rows) return {data:null,error:new Error('unknown_table')}
  let matched=rows.filter(r=>filters.every(([k,v])=>r[k]===v))
+ if(table==='event_editions'&&settingsScenario==='empty') matched=matched.filter(r=>!r.review_only&&!editionSeeds.some(seed=>seed.id===r.id))
  if(operation!=='select') {
+ if(table==='event_editions') {
+  if(settingsScenario==='save-error') { await new Promise(resolve => setTimeout(resolve, 600)); return {data:null,error:new Error('mock_save_failed')} }
+  if(values.division_settings) {
+   if(divisionError(normalizeDivisions(values.division_settings))) return {data:null,error:new Error('invalid_divisions')}
+   for(const prior of operation==='update'?matched:[]) {
+    for(const answer of submissions.filter(s=>s.event_id===prior.id)) {
+     const id=answer.entry_division
+     if(!Object.hasOwn(values.division_settings,id) || values.division_settings[id].requiresProof!==prior.division_settings[id]?.requiresProof)
+      return {data:null,error:new Error('answered_division_locked')}
+    }
+   }
+  }
+ }
  if(table==='submissions') {
  if(values.user_id!==session.user.id) return denied()
  const event=events.find(e=>e.id===values.event_id), time=Date.now()
@@ -144,6 +167,12 @@ function query(table) {
  const batch=Array.isArray(values)?values:[values]; matched=[]
  for(const v of batch) {
  let existing=operation==='update'?rows.find(r=>filters.every(([k,x])=>r[k]===x)):operation==='upsert'?rows.find(r=>table==='submissions'?r.event_id===v.event_id&&r.user_id===v.user_id:r.submission_id===v.submission_id):null
+ if(table==='submissions') {
+  const event=events.find(e=>e.id===v.event_id)
+  if(!Object.hasOwn(event.division_settings,v.entry_division)) return {data:null,error:new Error('unknown_division')}
+  if(existing&&existing.entry_division!==v.entry_division) return {data:null,error:new Error('division_immutable')}
+  if(requiresDivisionProof(event.division_settings,v.entry_division)&&(!v.beginner_proof_image_path||!v.login_days_proof_image_path)) return {data:null,error:new Error('proof_required')}
+ }
  if(table==='submissions'&&existing) { const review=reviews.find(r=>r.submission_id===existing.id); const changed=['score_image_path','deck_image_path','beginner_proof_image_path','login_days_proof_image_path'].some(k=>existing[k]!==v[k]); if(review?.verification_status==='verified'&&changed) return {data:null,error:new Error('reviewed_image_locked')}; if(review&&['category','score_image_path','deck_image_path'].some(k=>existing[k]!==v[k])) Object.assign(review,{verification_status:'pending',confirmed_score:null,verified_at:null,verified_by:null}) }
  if(existing) Object.assign(existing,structuredClone(v),{updated_at:now()}); else { existing={id:crypto.randomUUID(),created_at:now(),updated_at:now(),is_active:false,ranking_published:false,page_images_path:null,...structuredClone(v)}; rows.push(existing) }; matched.push(existing)
  }
@@ -164,19 +193,25 @@ export const supabase = {
  if(name==='list_public_ranking_events') {
   if(rankingScenario==='loading') return new Promise(() => {})
   if(rankingScenario==='events-error') return {data:null,error:new Error('mock_ranking_events_failed')}
-  return ok(events.filter(e=>e.ranking_published).sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(e=>({id:e.id,name:e.name,is_active:e.is_active,character_options:e.character_options,created_at:e.created_at})))
+  return ok(events.filter(e=>e.ranking_published).sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(e=>({id:e.id,name:e.name,is_active:e.is_active,character_options:e.character_options,division_settings:e.division_settings,created_at:e.created_at})))
  }
  if(name==='get_public_rankings') {
   if(rankingScenario==='ranking-error') return {data:null,error:new Error('mock_ranking_failed')}
   const event=events.find(e=>e.id===args.p_event_id&&e.ranking_published)
   if(!event)return denied()
   const rows=submissions.filter(s=>s.event_id===event.id).map(s=>({...s,review:reviews.find(r=>r.submission_id===s.id)??null}))
-  return ok(event.character_options.flatMap(c=>['open','switch_off','beginner'].flatMap(division=>rankedByCategoryAndDivision(rows,c.id,division).slice(0,10).map((row,index)=>({category:c.id,entry_division:division,rank:index+1,discord_username:row.discord_username,producer_name:row.producer_name,confirmed_score:row.review.confirmed_score})))))
+  return ok(event.character_options.flatMap(c=>divisionIds(event.division_settings).flatMap(division=>rankedByCategoryAndDivision(rows,c.id,division).slice(0,10).map((row,index)=>({category:c.id,entry_division:division,rank:index+1,discord_username:row.discord_username,producer_name:row.producer_name,confirmed_score:row.review.confirmed_score})))))
  }
  if(name==='get_event_settings') return active ? ok({...active,...entryPeriod(active),event_id:active.id,event_name:active.name,server_now:now()}) : ok(null)
  if(name==='get_my_rank_neighbor') return myRankNeighbor(args.p_event_id)
  if(name==='list_my_submission_history') return ok(submissionHistory())
  if(!admin()) return denied()
+ if(name==='get_event_division_usage') {
+  if(settingsScenario==='usage-error') return {data:null,error:new Error('mock_usage_failed')}
+  const event=events.find(e=>e.id===args.p_event_id)
+  if(!event) return denied()
+  return ok(Object.fromEntries(divisionIds(event.division_settings).map(id=>[id,submissions.filter(s=>s.event_id===event.id&&s.entry_division===id).length])))
+ }
  if(name==='count_registered_users') return ok(mockUsers.filter(u=>u.role==='user').length)
  if(name==='list_admin_submissions') return ok(submissions.filter(s=>s.event_id===args.p_event_id).map(s=>({...s,profile:{user_id:mockUsers.find(u=>u.id===s.user_id).user_id},review:reviews.find(r=>r.submission_id===s.id)??null})))
  if(name==='list_user_summaries') return ok(mockUsers.map(u=>({...u,has_submission:submissions.some(s=>s.user_id===u.id),last_submitted_at:submissions.filter(s=>s.user_id===u.id).sort((a,b)=>b.updated_at.localeCompare(a.updated_at))[0]?.updated_at??null})))

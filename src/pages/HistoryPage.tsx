@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { HistoryImage } from '../components/history/HistoryImage'
 import { Modal } from '../components/Modal'
-import { entryDivisionName } from '../components/responses/labels'
+import { divisionLabel, requiresDivisionProof } from '../lib/divisions'
 import { characterLabel, characterRoster } from '../lib/characters'
 import { supabase } from '../lib/supabase'
 import type { SubmissionHistory } from '../types'
@@ -33,7 +33,7 @@ function HistoryRow({ row, onSelect }: { row: SubmissionHistory; onSelect: () =>
       <td>{row.discord_username}</td>
       <td>{row.producer_name}</td>
       <td>{characterLabel([...row.character_options, ...characterRoster], row.category)}</td>
-      <td>{entryDivisionName[row.entry_division]}</td>
+      <td>{divisionLabel(row.division_settings, row.entry_division)}</td>
       <td>{dateLabel(row.created_at)}</td>
       <td>{dateLabel(row.updated_at)}</td>
     </tr>
@@ -46,9 +46,9 @@ function HistoryImages({ row }: { row: SubmissionHistory }) {
         <HistoryImage initiallyOpen path={row.score_image_path}
           label={row.deck_image_path ? '評価値（旧形式）' : '評価値・最終所持スキルカード'} />
         {row.deck_image_path && <HistoryImage initiallyOpen path={row.deck_image_path} label="デッキ（旧形式）" />}
-        {(row.entry_division === 'beginner' || row.beginner_proof_image_path) &&
+        {(requiresDivisionProof(row.division_settings, row.entry_division) || row.beginner_proof_image_path) &&
           <HistoryImage initiallyOpen path={row.beginner_proof_image_path} label="PID・Pレベル" />}
-        {(row.entry_division === 'beginner' || row.login_days_proof_image_path) &&
+        {(requiresDivisionProof(row.division_settings, row.entry_division) || row.login_days_proof_image_path) &&
           <HistoryImage initiallyOpen path={row.login_days_proof_image_path} label="総出席日数" />}
       </div>
   )

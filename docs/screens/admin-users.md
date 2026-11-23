@@ -39,3 +39,9 @@ list_user_summariesを初期表示と更新ボタン、成功後に呼びます�
 [UsersPage.tsx](../../src/pages/UsersPage.tsx)、[validation.ts](../../src/lib/validation.ts)、[初期一覧RPC](../../supabase/migrations/20260724000000_initial_schema.sql)、[create-user](../../supabase/functions/create-user/index.ts)、[reset-user-password](../../supabase/functions/reset-user-password/index.ts)。
 
 2026-11-23 履歴順位追加時の全画面照合: UsersPageの管理者限定ルート、発行情報/再発行確認モーダルを照合。本人履歴の順位追加によるユーザー発行・権限変更はありません。 全152テストで既存の画面/ルートを回帰確認。ブラウザー実描画・全画面手動操作は保留。[検証記録](../verification.md)。
+
+
+2026-11-24 全画面再照合: UsersPageの作成/再発行・結果表示モーダルと管理者ガードを照合。部門数の変更によるユーザー登録API・権限・資格情報の変更はありません。 全173テストで既存ルートと関連処理を回帰確認。実ブラウザーでの手動操作・描画は未確認。[検証記録](../verification.md)。
+
+
+2026-11-24 v13全画面再照合: ユーザー作成/再発行と結果モーダル・管理者ガードを照合。今回の単一部門自動選択による変更なし。 全178テスト・lint/build成功。実ブラウザーでの手動操作・描画は未確認。[検証記録](../verification.md)。

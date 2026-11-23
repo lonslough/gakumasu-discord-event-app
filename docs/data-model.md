@@ -27,6 +27,7 @@
 | submission_start_at / submission_end_at | nullable timestamptz、両方あるときstart < end |
 | character_options | 必須jsonb配列、異なる許可IDを2つ保持 |
 | is_active | boolean、既定false、true行は部分一意indexで最大1行 |
+| division_settings | 必須jsonb。部門ID→name/description/eligibility/requiresProof/order。1〜10部門。詳細は後述 |
 | ranking_published | 必須boolean、既定false。一般向けランキング公開。既存回も追加migrationで非公開となり、管理者が明示保存した回だけ公開 |
 | page_images_path | nullable text、値があるなら `id/page-images.zip` に一致 |
 | created_at / updated_at | 必須timestamptz、既定now() |
@@ -45,14 +46,14 @@
 | user_id | 必須UUID、profiles参照、プロフィール削除時cascade |
 | discord_username / producer_name | 必須text、それぞれ1〜100文字。アプリ保存時trim |
 | category | 必須text、開催回キャラクターID |
-| entry_division | open / switch_off / beginner、既定open、登録後変更禁止 |
+| entry_division | text、開催回のdivision_settingsに存在するID。既定openは旧互換用、登録後変更禁止 |
 | score_image_path | nullable text、本人UUIDの `/score/` 配下 |
 | deck_image_path | nullable text、本人UUIDの `/deck/` 配下、旧形式専用 |
 | beginner_proof_image_path | nullable text、本人UUIDの `/beginner-proof/` 配下 |
 | login_days_proof_image_path | nullable text、本人UUIDの `/login-days-proof/` 配下 |
 | created_at / updated_at | 必須timestamptz、既定now() |
 
-一意キーは `(event_id,user_id)`。beginnerは2種類の証明画像パスが必須。`beginner_evidence_required` はNOT VALIDで追加されており、既存行の全件検査を済ませた宣言ではありません。新規・更新行には制約を適用します。画像パスはStorageオブジェクトへの外部キーではなく文字列制約です。
+一意キーは `(event_id,user_id)`。選択部門のrequiresProof=trueの場合は2種類の証明画像パスが必須。旧固定3ID CHECKとbeginner_evidence_requiredは2026-11-24の追加migrationで動的所属・証明検証トリガーへ置き換えました。既存行は書き換えず、新規・更新時に検証します。画像パスはStorageオブジェクトへの外部キーではなく文字列制約です。
 
 ### submission_reviews
 
@@ -75,6 +76,7 @@ booleanのid=trueを主キーとする単一行。rules_description、updated_at
 
 | 処理 | タイミングと挙動 |
 | --- | --- |
+| a_validate_submission_division | INSERT/UPDATE前、開催回をロックし、部門の存在とrequiresProofに応じた証明2点を検証 |
 | prevent_entry_division_change | entry_division更新前、値が変われば例外 |
 | reject_submission_outside_period | INSERT/UPDATE前、対象event_idが非activeまたは期間外なら例外 |
 | validate_submission_character | INSERTまたはcategory/event_id更新前、開催回にIDが存在するか検査。UPDATEでcategoryが同じ場合は早期return |
@@ -115,3 +117,14 @@ anonから主要テーブルへの権限を取り消します。is_adminはprofi
 ## 参加履歴順位の追加（2026-11-23）
 
 [新規migration](../supabase/migrations/20261123010000_add_submission_history_ranks.sql)で本人履歴RPCを更新。テーブル・RLS・既存データは変更せず、確認済み得点を開催回/キャラクター/応募部門で順位付けして本人のrankだけを追加します。非公開回の本人順位も返しますが、他人の回答・管理メモの権限は広げません。詳細は[API](api.md)・[参加履歴](screens/history.md)。履歴DB35項目と既存回帰74項目がローカルで成功。ローカルに追加migrationのみ適用済み、本番への適用は未実施です。
+
+
+## 可変応募部門のDB制御（2026-11-24）
+
+[新規migration](../supabase/migrations/20261124000000_add_configurable_divisions.sql)はevent_editions.division_settingsを追加。既存回は現行3部門と既存ID、初心者のみ証明必須を既定値として付与。既存回答は更新しません。
+
+validate_event_divisionsは1〜10部門、ID長1〜64、名称必須50文字、補足200文字、条件500文字、booleanのrequiresProof、0〜件数−1で重複しないorderを検査。文字列をJavaScript trimと同じ空白集合で前後除去し、名称重複を拒否します。文字数はUnicodeコードポイント。保存値は既定の5項目へ正規化します。
+
+UPDATEは開催回の行ロックを保持した状態で、回答がある部門の削除・requiresProof変更を拒否。応募のa_validate_submission_divisionも同じ開催回行をFOR NO KEY UPDATEでロックするため、同時の最初の応募と設定変更を直列化します。回答が先なら削除/証明変更を拒否、削除が先なら応募を拒否。氏名や文言は編集可能です。
+
+内部検証関数・trim補助関数はauthenticated/anon/publicから実行権限を除外。管理者限定get_event_division_usageは部門ごとの件数だけを返します。既存RLSとStorageポリシーは維持。[DBテスト](../supabase/tests/divisions.sql)46項目と既存109項目、ローカル独立トランザクションによる競合6項目が成功。本番適用は未実施です。

@@ -1,3 +1,6 @@
+import { DivisionSettingsEditor } from '../components/settings/DivisionSettingsEditor'
+import { copyDivisions, emptyDivisions, normalizeDivisions, divisionError } from '../lib/divisions'
+import type { DivisionSettings } from '../types'
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
 import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
@@ -22,6 +25,8 @@ const toLocalDateTime = (value: string | null) => {
 
 export function SettingsPage() {
   const { session } = useAuth()
+  const [divisions, setDivisions] = useState<DivisionSettings>(emptyDivisions)
+  const [usageResult, setUsageResult] = useState<{ eventId: string; counts: Record<string, number>; error: string } | null>(null)
   const [rules, setRules] = useState('')
   const [eventName, setEventName] = useState('')
   const [rankingPublished, setRankingPublished] = useState(false)
@@ -30,6 +35,9 @@ export function SettingsPage() {
   const [characters, setCharacters] = useState<CharacterOption[]>([])
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  let usage: Record<string, number> | null = null
+  if (selectedEventId === newEventValue) usage = {}
+  else if (usageResult?.eventId === selectedEventId && !usageResult.error) usage = usageResult.counts
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [rulesDraft, setRulesDraft] = useState('')
   const [rulesSourceEventId, setRulesSourceEventId] = useState('')
@@ -62,6 +70,7 @@ export function SettingsPage() {
   useEffect(() => {
     setPageImageFiles({ login: null, entry: null })
     if (selectedEventId === newEventValue) {
+      setDivisions(events[0] ? copyDivisions(events[0].division_settings) : emptyDivisions())
       setRules('')
       setEventName('')
       setRankingPublished(false)
@@ -72,6 +81,7 @@ export function SettingsPage() {
     }
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected) return
+    setDivisions(copyDivisions(selected.division_settings))
     setRules(selected.rules_description)
     setEventName(selected.name)
     setRankingPublished(Boolean(selected.ranking_published))
@@ -80,9 +90,23 @@ export function SettingsPage() {
     setCharacters(selected.character_options.length === 2 ? selected.character_options : defaultCharacterOptions)
   }, [events, selectedEventId])
 
+  useEffect(() => {
+    if (!selectedEventId || selectedEventId === newEventValue) return
+    let current = true
+    void Promise.resolve(supabase.rpc('get_event_division_usage', { p_event_id: selectedEventId })).then(({ data, error }) => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: data ?? {}, error: error ? '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' : '' })
+    }).catch(() => {
+      if (current) setUsageResult({ eventId: selectedEventId, counts: {}, error: '部門の回答件数を取得できませんでした。画面を開き直して再試行してください。' })
+    })
+    return () => { current = false }
+  }, [selectedEventId, events])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!session || rules.length > maxRulesLength) return
+    if (!session || submitting || rules.length > maxRulesLength) return
+    const normalizedDivisions = normalizeDivisions(divisions)
+    const invalidDivisions = divisionError(normalizedDivisions)
+    if (invalidDivisions) { setError(invalidDivisions); return }
     if (!eventName.trim()) {
       setError('開催回の名称を入力してください。')
       return
@@ -109,6 +133,7 @@ export function SettingsPage() {
     setError('')
     const values = {
       name: eventName.trim(),
+      division_settings: normalizedDivisions,
       ranking_published: rankingPublished,
       rules_description: rules,
       submission_start_at: submissionStart ? new Date(submissionStart).toISOString() : null,
@@ -217,7 +242,7 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">ADMINISTRATION</p>
           <h1>設定</h1>
-          <p>イベントルール、対象キャラクター、応募受付期間を設定します。</p>
+          <p>イベントルール、対象キャラクター、応募部門、応募受付期間を設定します。</p>
         </div>
       </div>
       {message && <div className="notice success">{message}</div>}
@@ -226,7 +251,7 @@ export function SettingsPage() {
         {loading ? (
           <div className="spinner" />
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={submit}><fieldset className="settings-form-fields" disabled={submitting}>
             <fieldset className="settings-section">
               <legend>開催回</legend>
               <div className="form-grid">
@@ -326,6 +351,7 @@ export function SettingsPage() {
                 <small>強化月間の2枠に割り当てるキャラクターを選択します。同じキャラクターは重複して選択できません。</small>
                 </label>
             </fieldset>
+<DivisionSettingsEditor key={selectedEventId} value={divisions} onChange={setDivisions} usage={usage} usageError={usageResult?.eventId === selectedEventId ? usageResult.error : ''} />
             <div className="settings-section rules-setting-row">
               <div>
                 <strong>ルール説明</strong>
@@ -340,7 +366,7 @@ export function SettingsPage() {
                 {submitting ? '保存中…' : '設定を保存'}
               </button>
             </div>
-          </form>
+          </fieldset></form>
         )}
       </section>
       {showRulesModal && (

@@ -211,3 +211,57 @@ mock/index.htmlを開きuser1でログイン→「参加履歴」。「確認済
 v10検証: build:mock・配布JSのDOM検査16項目・差分チェック成功。確認状態列なし・9列一致と順位/得点・画像モーダル等を確認。実描画は未確認。
 
 2026-11-23: v10承認後の本体は全152テスト・DB109項目・HTTP37項目・lint/build/DB lint成功。詳細は[検証記録](../docs/verification.md)。実ブラウザー描画/手動操作は保留です。
+
+
+## 過去レビュー v11：応募部門の開催回別編集（2026-11-24）
+
+段階: 承認待ち。本体未実装。作業ID 20261124-division-settings-d73a。
+
+SettingsPageの対象キャラクター直後に部門編集欄を常時表示。固定3部門のname/descriptionとbeginnerのeligibilityを開催回のdivision_settingsへメモリー保存します。名称必須50文字、補足任意200文字、初心者条件任意500文字。前後trim・完全一致の名称重複禁止、文中改行保持。文字数超過は保存時に拒否し入力を保持します。新規回は作成日時最新回の保存値を独立コピー。0回は全空欄です。
+
+回答カードと本人履歴、一般/管理ランキング、管理表、CSVへ回別名称を渡します。既存回答も次回取得時に新名称へ変更し、他回と固定ID・ランキング集計・証明画像要件は維持。空の補足・条件は要素ごと非表示。公開ランキングは公開回の設定だけを取得します。
+
+変更: source/src/lib/divisions.tsとcomponents/settings/DivisionSettingsEditor.tsxを新設。SettingsPage、EntryPage、HistoryPage、ResponsesPage、EntryFormFields、ResponseRankings、ResponsesTable、PublicRankings、types、メモリーsupabase、stylesを更新。index.htmlをv11へ変更しapp.js/app.cssを再生成。設定末尾の確認メニューで通常/保存失敗/開催回なしを再現。既存認証とメモリー限定の方式を維持し、通信・ブラウザー永続化は追加していません。本体のsrc/・supabase/・テスト・docs正本は変更していません。
+
+検査: build:mock成功。配布app.jsのDOM検査35項目成功。既存初期値、欄配置、50/200/500ちょうどと超過、空白のみ、重複、trim/改行、回別保存、未保存破棄、最新回引継ぎ、コピー独立、保存失敗/入力保持/処理中無効、管理/一般ランキング・管理表・CSV・本人履歴、初心者条件、空文非表示、一般の設定URL拒否、開催回0件から初回保存と次の引継ぎを確認。通信/ブラウザー永続化0件・DOM実行エラー0件。
+
+未確認: 実ブラウザー接続ホスト利用不能、Chrome選択は「Computer Use was not approved to use Google Chrome」。実描画・PC/スマホ・両テーマ・スクリーンショット・手動操作は未確認。DOM検査ではImage/Blob URLを代用し、CSVはBlob内容を確認しただけで実ファイル保存は未確認。DB/RLS・API・再読込後の永続化は承認後に本体で確認する。モック再読込では全変更が初期化されます。
+
+仕様・設計・検査詳細はプロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md・design.md・verification.md・dom-results.json。レビュー手順は[README](README.md)のv11。
+
+
+## 過去レビュー v12：部門数変更（2026-11-24）
+
+段階: v12承認済み・本体実装済み、ブラウザー手動検証保留。作業ID 20261124-division-settings-d73a。R-01に対応しv11の固定3部門を置き換えました。これまで決まった開催回別・名称/補足/保存方法/反映先の仕様は維持します。
+
+- 部門数1〜10。追加は空欄と証明オフ、IDは自動生成し既存3IDは維持。初回は1部門空欄、最新回があれば部門数と全設定をコピー。
+- 全部門に参加条件文（任意500文字）と証明画像2点必須のcheckbox。回答のある部門は削除と証明要件変更不可、名称/案内は編集可能。件数未取得/失敗時も保護する。
+- 削除は対象名と設定保存で確定する旨を示すモーダルで確認。キャンセルは入力保持。「設定を保存」で構成と他設定を一緒に保存。
+- 回答カードと証明入力/検証/保存、本人履歴、管理/一般ランキングと公開RPC、管理表/CSVは可変IDの設定を使用。カスタム部門も既存と同じ順位計算。回答登録後の部門ID変更禁止を維持。
+- 模擬保存でも現在の回答を確認し削除/証明変更を拒否。実装後は新規migrationで動的所属・証明検証・回答済み部門保護・競合制御をDBにも実装する。管理者限定usage RPCは部門別件数のみ返す予定で、一般の他人データ取得権限は広げない。
+
+v11から変更したソース: lib/divisions、types、DivisionSettingsEditor、SettingsPage、EntryFormFields、EntryPage、validation、entryService、HistoryPage、ResponseRankings、PublicRankings、ResponsesPage、メモリーsupabase、styles。index.htmlと配布app.js/app.cssをv12へ再生成。設定のモック確認メニューに回答件数取得失敗を追加。実サービス通信・ブラウザー永続化は追加なし。
+
+今回の検査: 配布JSのDOM55項目成功。v11の文字数・保存・各画面の部門名を可変構造で再検査し、追加/削除確認キャンセル/削除、1〜10境界、証明初期オフ、カスタム条件/証明要求・送信拒否/任意応募保存・履歴、回答後保護、10部門ランキング、件数取得失敗の保護、初回1部門と継承も確認。通信/ブラウザー永続化呼出し0・DOM実行エラー0。
+
+模擬アダプター直接呼出し25項目成功: 回答済み削除/証明変更拒否、0/11部門拒否、一般更新/usage拒否、未知部門拒否、カスタム証明検証/応募/再保存、回答後部門変更拒否、カスタム公開順位と履歴、Unicode上限を確認。build:mock・差分チェック成功。
+
+未確認: v11時点の接続ホスト利用不能/Chrome利用拒否があるため実ブラウザーを迂回せず、v12の描画・手動操作・PC/スマホ・両テーマは未確認。DOM検査でImage/Blob URLを代用。CSVはBlob内容で実ファイル保存は未確認。DB/RLS/同時受付/実API/実永続化は本体実装後の検証対象です。旧版の未確認事項を今回済みとは扱いません。
+
+詳細: プロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md、design.md、verification.md、dom-results-v12.json、adapter-results-v12.json。v11記録も保持。起動と確認手順は[README](README.md)のv12。
+
+
+2026-11-24: v12に対するユーザーの「承認」を受領し本体へ実装。モックの表示・配布物は承認時から変更なし。本体は表示順をorderで永続化し実DBの動的検証と競合保護を実装。全173テスト、DB155、実API21、競合6、lint/build/DB lint成功。実ブラウザー手動操作・描画は保留。[本体設定設計](../docs/screens/admin-settings.md) / [検証記録](../docs/verification.md)。
+
+
+## 現在のレビュー v13：単一部門の自動選択（2026-11-24）
+段階: v13承認済み・本体反映済み、ブラウザー手動検証保留。作業ID 20261124-division-settings-d73a、R-02対応。部門1件の新規回答を読込後に自動チェックする。保存済み回答は優先し、複数部門の新規回答は未選択を維持。自動選択による保存は行わず、他入力・条件文・証明必須処理・検証は従来どおり。
+
+変更はmock/source/src/pages/EntryPage.tsxのloading/rulesLoading/existing判定後の選択初期化、lib/supabase.tsの未回答単一部門サンプル追加、配布index.html/app.js/app.cssと説明。既存サンプルの参加履歴生成と「開催回なし」シナリオへ確認用回を混入させない。確認用回の画像は既存サンプルのZIPを参照。DB/API/他画面の実装と本体srcは変更していない。
+
+検査: build:mock成功。配布JSの単一部門17項目（自動選択・確認/保存・証明必須検証・他入力保持・再訪/再ログイン・既存回答・複数部門）と関連部門機能55項目が成功。通信/ブラウザー永続化0・DOM実行エラー0。詳細はプロジェクト内 .tmp/gakumasu-dev/20261124-division-settings-d73a/ のspec.md/design.md/verification.md、single-results-v13.json、regression-results-v13.json。
+
+実ブラウザーPC/スマホ・両テーマ・手動操作は未確認。既存の接続ホスト利用不能/Chrome利用拒否を迂回せず、DOM検査を実描画/手動確認の代用としない。モックはメモリーのみ、再読込で初期化。操作手順は[README](README.md)のv13。本体への反映はv13の明示承認後。
+
+
+2026-11-24: v13へのユーザー「承認」を受領し本体EntryPageへ反映。関連16件/全178テスト・lint/build成功。モック配布物は承認時から変更なし。実ブラウザー手動確認は保留。[回答入力設計](../docs/screens/entry.md) / [検証記録](../docs/verification.md)。

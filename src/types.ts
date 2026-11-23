@@ -8,6 +8,8 @@ export interface CharacterOption {
   enabled: boolean
 }
 
+export type DivisionSettings = Record<EntryDivision, { name: string; description: string; eligibility?: string; requiresProof: boolean; order?: number }>
+
 export interface EventSettings {
   event_id: string
   event_name: string
@@ -16,6 +18,7 @@ export interface EventSettings {
   submission_end_at: string | null
   server_now: string
   accepting_submissions: boolean
+  division_settings?: DivisionSettings
   character_options: CharacterOption[]
 }
 
@@ -25,6 +28,7 @@ export interface EventEdition {
   rules_description: string
   submission_start_at: string | null
   submission_end_at: string | null
+  division_settings?: DivisionSettings
   character_options: CharacterOption[]
   page_images_path: string | null
   is_active: boolean
@@ -32,9 +36,9 @@ export interface EventEdition {
   created_at: string
   updated_at: string
 }
-export type EntryDivision = 'open' | 'switch_off' | 'beginner'
+export type EntryDivision = string
 
-export type PublicRankingEvent = Pick<EventEdition, 'id' | 'name' | 'is_active' | 'character_options' | 'created_at'>
+export type PublicRankingEvent = Pick<EventEdition, 'id' | 'name' | 'is_active' | 'character_options' | 'division_settings' | 'created_at'>
 
 export interface PublicRankingEntry {
   category: Category
@@ -84,6 +88,7 @@ export interface SubmissionHistory extends Omit<Submission, 'user_id'> {
   rank: number | null
   event_name: string
   is_active: boolean
+  division_settings?: DivisionSettings
   character_options: CharacterOption[]
   verification_status: VerificationStatus
   confirmed_score: number | null

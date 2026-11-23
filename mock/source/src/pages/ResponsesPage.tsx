@@ -6,7 +6,8 @@ import { ResponseRankings } from '../components/responses/ResponseRankings'
 import { PublicRankings } from '../components/responses/PublicRankings'
 import { ResponseStats } from '../components/responses/ResponseStats'
 import { ResponsesTable } from '../components/responses/ResponsesTable'
-import { entryDivisionName, statusName } from '../components/responses/labels'
+import { divisionLabel, divisionIds } from '../lib/divisions'
+import { statusName } from '../components/responses/labels'
 import { useAuth } from '../contexts/AuthContext'
 import { useReviewImages } from '../hooks/useReviewImages'
 import {
@@ -32,7 +33,6 @@ import type {
   VerificationStatus,
 } from '../types'
 
-const rankingDivisions: EntryDivision[] = ['open', 'switch_off', 'beginner']
 
 export function ResponsesPage() {
   const { profile, loading } = useAuth()
@@ -47,6 +47,7 @@ function AdminResponsesView() {
   const [characters, setCharacters] = useState<CharacterOption[]>(defaultCharacterOptions)
   const [events, setEvents] = useState<EventEdition[]>([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  const divisionSettings = events.find(event => event.id === selectedEventId)?.division_settings
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -101,14 +102,14 @@ function AdminResponsesView() {
         characters.map((character) => [
           character.id,
           Object.fromEntries(
-            rankingDivisions.map((division) => [
+            divisionIds(divisionSettings).map((division) => [
               division,
               rankedByCategoryAndDivision(rows, character.id, division),
             ]),
           ) as Record<EntryDivision, AdminSubmission[]>,
         ]),
       ) as Record<Category, Record<EntryDivision, AdminSubmission[]>>,
-    [rows, characters],
+    [rows, characters, divisionSettings],
   )
   const stats = useMemo(
     () => getResponseStats(rows, registered, characters.map((character) => character.id)),
@@ -182,7 +183,7 @@ function AdminResponsesView() {
         row.discord_username,
         row.producer_name,
         characterLabel(characters, row.category),
-        entryDivisionName[row.entry_division],
+        divisionLabel(divisionSettings, row.entry_division),
         row.review?.confirmed_score,
         statusName[row.review?.verification_status ?? 'pending'],
         row.review?.admin_note,
@@ -222,8 +223,9 @@ function AdminResponsesView() {
 
       {error && <div className="notice error">{error}</div>}
       <ResponseStats registered={registered} stats={stats} characters={characters} />
-      <ResponseRankings rankings={rankings} characters={characters} />
+      <ResponseRankings rankings={rankings} characters={characters} divisionSettings={divisionSettings} />
       <ResponsesTable
+        divisionSettings={divisionSettings}
         rows={filtered}
         characters={characters}
         verifiedCount={stats.verified}

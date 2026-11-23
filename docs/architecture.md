@@ -31,7 +31,7 @@ flowchart LR
 | `supabase/migrations/` | 順番に適用するDBスキーマ・関数・権限 |
 | `supabase/functions/` | 管理操作とPages連携 |
 
-`Category` は固定2値のenumではなくstring。対象キャラクター2名は開催回に保持します。応募部門はopen / switch_off / beginner、レビュー状態はpending / verified / invalidです。
+`Category` は固定2値のenumではなくstring。対象キャラクター2名は開催回に保持します。応募部門は開催回のdivision_settingsに保持する1〜10部門で、EntryDivisionはstringです。既存のopen / switch_off / beginnerは維持し、新規部門はUUIDを採番します。レビュー状態はpending / verified / invalidです。
 
 ## 認証とルーティング
 
@@ -86,3 +86,15 @@ styles.cssに日本語フォント、ライト／ダーク配色、共通カー�
 ## 参加履歴の本人順位（2026-11-23）
 
 参加履歴は得点直後に本人順位を表示し、確認状態の独立した列は表示しません。非公開回も本人順位を表示し、他人の回答を取得せずRPC内で分類別に集計します。1〜3位/ランク外/—の表示規則は[参加履歴](screens/history.md)、認可と集計は[API](api.md)を参照。全6画面・所属モーダル・旧URL・未定義URLのルーティング構成を維持。全152テスト・DB109項目・HTTP37項目は成功、実ブラウザー手動回帰は保留です。
+
+
+## 開催回別の応募部門（2026-11-24）
+
+設定画面はdivision_settingsを編集し、回答入力・履歴・管理/一般ランキング・管理表・CSVが同じ設定から名称を解決します。部門の表示順は各項目のorderで維持し、JSONBのキー順に依存しません。初回は1部門の空欄、新規開催は作成日時最新の開催回の保存値をコピーします。新規部門の証明必須はオフ。
+
+回答済み部門の削除と証明要件変更をDBでも拒否します。応募処理は開催回行をFOR NO KEY UPDATEでロックし、設定更新との競合を直列化。動的部門の所属と証明2点を検証します。既存の本人回答RLS・管理者設定RLS・公開条件・回答後部門変更禁止は維持します。[部門設定](screens/admin-settings.md) / [DB](data-model.md) / [API](api.md)。
+
+全6画面とモーダル、旧/admin/rules、未定義URLをソースで再照合。ルート追加/変更なし。全173テスト、DB155項目、ローカルAPI21項目、競合6項目、lint/build/DB lint成功。実ブラウザー全画面手動回帰とPC/スマホ描画は保留。[検証記録](verification.md)。
+
+
+2026-11-24 v13: 回答入力の設定/本人回答読込後、新規かつ部門1件なら唯一のIDを自動選択。既存回答と他入力は保持し、複数部門・保存API・DB制御は維持。[回答入力](screens/entry.md)。全6画面とモーダル・旧/admin/rules・未定義URLを再照合、ルート変更なし。全178テスト・lint/build成功。実ブラウザー手動回帰は保留。

@@ -15,6 +15,7 @@ import {
 import { getMockEntryScenario, setMockEntryScenario, supabase, type MockEntryScenario } from '../lib/supabase'
 import { siteAssetUrl, useSiteConfig } from '../lib/siteConfig'
 import { validateEntry, type EntryValues } from '../lib/validation'
+import { divisionIds } from '../lib/divisions'
 import type { EventSettings, Submission } from '../types'
 
 const formatPeriodDate = (value: string) =>
@@ -134,6 +135,13 @@ export function EntryPage() {
     setShowingRules(true)
   }, [existing, loading, rulesLoading])
 
+  useEffect(() => {
+    if (loading || rulesLoading || existing || !eventSettings) return
+    const ids = divisionIds(eventSettings.division_settings)
+    if (ids.length !== 1) return
+    setValues(current => current.entryDivision === ids[0] ? current : { ...current, entryDivision: ids[0] })
+  }, [loading, rulesLoading, existing, eventSettings])
+
   const requestSubmit = (event: FormEvent) => {
     event.preventDefault()
     if (!eventSettings?.accepting_submissions) {
@@ -143,7 +151,7 @@ export function EntryPage() {
     const nextErrors = validateEntry(values, {
       beginnerProof: Boolean(existing?.beginner_proof_image_path),
       loginDaysProof: Boolean(existing?.login_days_proof_image_path),
-    })
+    }, eventSettings.division_settings)
     setErrors(nextErrors)
     if (!Object.keys(nextErrors).length) setConfirming(true)
   }
@@ -157,7 +165,7 @@ export function EntryPage() {
     try {
       const latestSettings = await loadEventSettings()
       if (!latestSettings?.accepting_submissions) throw new Error('period')
-      await saveEntry({ userId: session.user.id, eventId: latestSettings.event_id, values, existing })
+      await saveEntry({ userId: session.user.id, eventId: latestSettings.event_id, values, existing, divisions: latestSettings.division_settings })
       setMessage('回答を保存しました。')
       await load()
       setRankRevision((value) => value + 1)
@@ -250,6 +258,7 @@ export function EntryPage() {
           errors={errors}
           existing={existing}
           characters={eventSettings?.character_options ?? []}
+          divisionSettings={eventSettings?.division_settings}
           onChange={(patch) =>
             setValues((current) => ({ ...current, ...patch }))
           }
