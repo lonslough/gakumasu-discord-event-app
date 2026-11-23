@@ -1,3 +1,4 @@
+import { PageImage } from '../PageImageState'
 import { useEffect, useState } from 'react'
 import { strToU8, zipSync } from 'fflate'
 import { compressImageForUpload } from '../../lib/imageCompression'
@@ -44,24 +45,24 @@ export async function uploadPageImages(eventId: string, files: PageImageFiles, i
   const { error: updateError } = await supabase.from('event_editions')
     .update({ page_images_path: path }).eq('id', eventId)
   if (updateError) throw updateError
-  if (isActive) await cacheLocalPageImages(loginImage, entryImage)
+  if (isActive) await cacheLocalPageImages(loginImage, entryImage, eventId)
 }
 
 function usePreview(file: File | null) {
-  const [url, setUrl] = useState('')
+  const [preview, setPreview] = useState<{ file: File; url: string } | null>(null)
   useEffect(() => {
-    if (!file) { setUrl(''); return }
+    if (!file) { setPreview(null); return }
     const nextUrl = URL.createObjectURL(file)
-    setUrl(nextUrl)
+    setPreview({ file, url: nextUrl })
     return () => URL.revokeObjectURL(nextUrl)
   }, [file])
-  return url
+  return preview?.file === file ? preview?.url : undefined
 }
 
 export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChange }: Props) {
   const config = useSiteConfig()
   const [error, setError] = useState('')
-  const [savedPreviews, setSavedPreviews] = useState<{ login: string; entry: string } | null>(null)
+  const [savedPreviews, setSavedPreviews] = useState<{ path: string; login?: string; entry?: string; failed?: boolean } | null>(null)
   const [editing, setEditing] = useState<{ target: keyof PageImageFiles; file: File } | null>(null)
   const loginPreview = usePreview(files.login)
   const entryPreview = usePreview(files.entry)
@@ -84,13 +85,15 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
       void downloadPageImages(pageImagesPath).then((images) => {
         if (cancelled) return
         urls = [URL.createObjectURL(images.login), URL.createObjectURL(images.entry)]
-        setSavedPreviews({ login: urls[0], entry: urls[1] })
+        setSavedPreviews({ path: pageImagesPath, login: urls[0], entry: urls[1] })
       }).catch(() => {
-        if (!cancelled) setError('保存済みページ画像の読み込みに失敗しました。')
+        if (!cancelled) { setSavedPreviews({ path: pageImagesPath, failed: true }); setError('保存済みページ画像の読み込みに失敗しました。') }
       })
     }
     return () => { cancelled = true; urls.forEach(URL.revokeObjectURL) }
   }, [pageImagesPath])
+
+  const saved = savedPreviews?.path === pageImagesPath ? savedPreviews : null
 
   return (
     <fieldset className="settings-section">
@@ -103,7 +106,7 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
             if (file) void openEditor('login', file)
             event.target.value = ''
           }} />
-          {(loginPreview || savedPreviews?.login || isActive) && <img className="page-image-preview" src={loginPreview || savedPreviews?.login || siteAssetUrl(config.loginImage)} alt="ログインページ画像のプレビュー" />}
+          {(files.login || pageImagesPath || isActive) && <PageImage className="page-image-preview" source={loginPreview || (!files.login ? saved?.login || (!pageImagesPath && config.loginImage ? siteAssetUrl(config.loginImage) : undefined) : undefined)} failed={!files.login && Boolean(pageImagesPath ? saved?.failed : config.failed)} alt="ログインページ画像のプレビュー" />}
         </label>
         <label>回答入力画面画像
           <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(event) => {
@@ -111,7 +114,7 @@ export function PageImageSettings({ isActive, pageImagesPath, files, onFilesChan
             if (file) void openEditor('entry', file)
             event.target.value = ''
           }} />
-          {(entryPreview || savedPreviews?.entry || isActive) && <img className="page-image-preview" src={entryPreview || savedPreviews?.entry || siteAssetUrl(config.entryImage)} alt="回答入力画面画像のプレビュー" />}
+          {(files.entry || pageImagesPath || isActive) && <PageImage className="page-image-preview" source={entryPreview || (!files.entry ? saved?.entry || (!pageImagesPath && config.entryImage ? siteAssetUrl(config.entryImage) : undefined) : undefined)} failed={!files.entry && Boolean(pageImagesPath ? saved?.failed : config.failed)} alt="回答入力画面画像のプレビュー" />}
         </label>
       </div>
       {editing && (

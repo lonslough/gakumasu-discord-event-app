@@ -1,3 +1,4 @@
+import { PageImage } from '../components/PageImageState'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { EntryFormFields } from '../components/entry/EntryFormFields'
@@ -167,12 +168,7 @@ export function EntryPage() {
 
   return (
     <main className="page narrow">
-      <div className="entry-title-art" aria-hidden="true">
-        <img
-          src={siteAssetUrl(siteConfig.entryImage)}
-          alt=""
-        />
-      </div>
+      <PageImage className="entry-title-art" source={siteConfig.entryImage ? siteAssetUrl(siteConfig.entryImage) : undefined} failed={siteConfig.failed} alt="" />
       <div className="page-title">
         <div>
           <p className="eyebrow">EVENT ENTRY</p>

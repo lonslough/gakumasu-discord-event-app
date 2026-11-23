@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { PageImageSettings, uploadPageImages, type PageImageFiles } from '../components/settings/PageImageSettings'
 import { RulesEditorModal, maxRulesLength } from '../components/settings/RulesEditorModal'
-import { cacheLocalPageImagesFromStorage } from '../lib/localPageImages'
+import { cacheLocalPageImages, downloadPageImages } from '../lib/localPageImages'
 import { useAuth } from '../contexts/AuthContext'
 import { characterRoster, defaultCharacterOptions } from '../lib/characters'
 import { supabase } from '../lib/supabase'
@@ -36,6 +36,7 @@ export function SettingsPage() {
   const [rulesSubmitting, setRulesSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [activating, setActivating] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [pageImageFiles, setPageImageFiles] = useState<PageImageFiles>({ login: null, entry: null })
@@ -182,21 +183,32 @@ export function SettingsPage() {
   const activateEvent = async () => {
     const selected = events.find((event) => event.id === selectedEventId)
     if (!selected?.page_images_path) return setError('先にこの開催回のページ画像をStorageへ保存してください。')
-    if (import.meta.env.DEV) {
-      try {
-        await cacheLocalPageImagesFromStorage(selected.page_images_path)
-      } catch {
-        return setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+    if (activating) return
+    setActivating(true)
+    setError('')
+    setMessage('')
+    try {
+      let images: Awaited<ReturnType<typeof downloadPageImages>> | undefined
+      if (import.meta.env.DEV) {
+        try {
+          images = await downloadPageImages(selected.page_images_path)
+        } catch {
+          setError('Storageからローカル確認用のページ画像を読み込めませんでした。')
+          return
+        }
       }
+      const { error: activateError } = import.meta.env.DEV
+        ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
+        : await supabase.functions.invoke('activate-event', { body: { eventId: selectedEventId } })
+      if (activateError) throw activateError
+      if (images) await cacheLocalPageImages(images.login, images.entry, selectedEventId)
+      await loadEvents(selectedEventId)
+      setMessage('回答受付対象の開催回を切り替えました。')
+    } catch {
+      setError('回答受付対象を切り替えられませんでした。')
+    } finally {
+      setActivating(false)
     }
-    const { error: activateError } = import.meta.env.DEV
-      ? await supabase.rpc('set_active_event', { p_event_id: selectedEventId })
-      : await supabase.functions.invoke('activate-event', {
-          body: { eventId: selectedEventId },
-        })
-    if (activateError) return setError('回答受付対象を切り替えられませんでした。')
-    await loadEvents(selectedEventId)
-    setMessage('回答受付対象の開催回を切り替えました。')
   }
 
   return (
@@ -220,7 +232,7 @@ export function SettingsPage() {
               <div className="form-grid">
                 <label>
                   編集する開催回
-                  <select value={selectedEventId} onChange={(event) => { setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
+                  <select disabled={activating} value={selectedEventId} onChange={(event) => { setPageImageFiles({ login: null, entry: null }); setSelectedEventId(event.target.value); setMessage(''); setError('') }}>
                     {events.map((event) => <option value={event.id} key={event.id}>{event.name}{event.is_active ? '（回答受付対象）' : ''}</option>)}
                     <option value={newEventValue}>新規開催</option>
                   </select>
@@ -231,7 +243,7 @@ export function SettingsPage() {
                 </label>
               </div>
               <div className="event-settings-actions">
-                <button type="button" className="button secondary small" disabled={selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
+                <button type="button" className="button secondary small" disabled={activating || selectedEventId === newEventValue || events.find((event) => event.id === selectedEventId)?.is_active} onClick={() => void activateEvent()}>
                   この開催回を回答受付対象にする
                 </button>
               </div>

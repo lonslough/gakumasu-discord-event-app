@@ -148,7 +148,7 @@ R-04へ対応。広い画面だけ、画像中心Xを画面幅÷3へ変更。画
 
 一時文書と詳細証跡はプロジェクト内 `.tmp/gakumasu-dev/20261020-entry-next-rank-7c91/`。本体の現行仕様と自動検証・保留範囲は[回答入力の正本](../docs/screens/entry.md)と[検証記録](../docs/verification.md)に記載しています。
 
-## 現在のレビュー v7：ランキングの公開設定（2026-11-23）
+## 過去レビュー v7：ランキングの公開設定（2026-11-23）
 
 段階: v7承認済み・本体実装済み、ブラウザー検証保留。作業ID `20261123-public-rankings-a81f`。2026-11-23、直前のv7承認依頼に対する「v7を承認し、本実装へ進める」を受領。本体src・追加migration・専用RPCを実装し、自動/実DB/実HTTPの検証を実施しました。モックの表示仕様・配布物は承認時から変更していません。
 
@@ -174,3 +174,15 @@ R-04へ対応。広い画面だけ、画像中心Xを画面幅÷3へ変更。画
 詳細記録はプロジェクト内 `.tmp/gakumasu-dev/20261123-public-rankings-a81f/` のspec.md、design.md、verification.md、dom-results.json、check-mock.cjs。起動・レビュー手順は[README](README.md)のv7を参照。
 
 本体の追加検証: 130テスト、実DB87項目（公開ランキング38＋既存49）、実HTTP28項目、DB lint、アプリlint/build成功。画面の旧応答破棄・保存失敗を本体テストで確認し、公開フラグの永続化・別セッション反映・実RLSをローカルAPIで確認。PC/スマホ・テーマ別の実描画、実ブラウザー操作・実CSV保存は引き続き未検証。詳しくは[本体設計](../docs/screens/admin-responses.md)と[検証記録](../docs/verification.md)。
+
+## 現在のレビュー v8：画像ローディング（2026-11-23）
+
+段階: v8承認済み・本体実装済み、ブラウザー検証保留。2026-11-23、ユーザーの「承認」を受領。作業ID 20261123-page-image-loading-b62d。
+
+対象は設定のページ画像プレビュー、ログインのタイトル画像、回答入力のバナー。読み込み中は可視テキストを伴わないスピナー、失敗時はスピナーを止めてスケルトン。aria-labelで状態を伝えます。設定取得・画像ロードとデコードが終わるまで画像を表示しません。設定の開催回変更直後から旧画像を隠し、公開画像への暫定フォールバックを止めます。連続切替の旧応答は破棄し、未登録新規は空欄です。既存の入力・画像調整・保存・権限は維持します。
+
+変更: source/src/components/PageImageState.tsx（新規）、components/settings/PageImageSettings.tsx、lib/siteConfig.ts、main.tsx、pages/LoginPage.tsx、pages/EntryPage.tsx、pages/SettingsPage.tsx、styles.css。配布app.js/app.cssを再生成、index.htmlをv8へ更新。左下の共通確認メニューで通常・低速・読込中維持・失敗を再現できます。シナリオはメモリー内だけで保持し、再読み込みで初期化します。
+
+配布JSのDOM検査22項目成功。ログイン/回答/設定の処理中・失敗・連続回切替・旧応答破棄・未登録画像・通信/永続化0件を確認。ImageとBlob URLは検査時に代用し、実描画・デコードを確認した証拠ではありません。ブラウザー接続ホストが利用不能、Chrome接続は承認タイムアウトのためPC/スマホ・両テーマ・スクリーンショットは未確認。各回のサンプル画像は同じ絵柄です。本番HTTPキャッシュ・IndexedDB・API/Storage/Workflowとの整合は本実装後に検証します。
+
+詳細文書・証跡: .tmp/gakumasu-dev/20261123-page-image-loading-b62d/ のspec.md、design.md、verification.md、dom-results.json。承認後は本体srcと関連テスト、docs正本を更新。supabaseは変更なし。本体全142テスト・lint/build成功、実ブラウザー検証は保留。

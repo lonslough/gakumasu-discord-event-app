@@ -71,3 +71,9 @@ entryServiceは既存回答の応募部門を優先し、event_id/user_idをキ�
 2026-11-23再照合: 回答フォーム・ルール/送信確認モーダル・本人のポイントRPCは維持。共通Headerから全認証ユーザーが[ランキング](admin-responses.md)へ移動可能になりました。ランキング公開設定と回答受付・本人の直前得点表示は別の条件です。既存EntryPage11テストとDBのポイント25項目を回帰確認。実ブラウザー手動確認は保留。[検証記録](../verification.md)。
 
 [EntryPage.tsx](../../src/pages/EntryPage.tsx)、[EntryRankPoints.tsx](../../src/components/entry/EntryRankPoints.tsx)、[EntryFormFields.tsx](../../src/components/entry/EntryFormFields.tsx)、[ImageFileField.tsx](../../src/components/entry/ImageFileField.tsx)、[entryService.ts](../../src/lib/entryService.ts)、[validation.ts](../../src/lib/validation.ts)、[ポイントRPC](../../supabase/migrations/20261020000000_add_entry_rank_neighbor.sql)、[画面テスト](../../src/pages/EntryPage.test.tsx)、[DBテスト](../../supabase/tests/entry_rank_neighbor.sql)。
+
+## ページ画像の読み込み状態（2026-11-23）
+
+画像設定の解決・画像取得・デコード完了まで画像欄内にスピナーのみ表示します。取得・デコード失敗は静止スケルトンに切り替えます。確定前の既定画像や前の画像を一瞬表示せず、画像の準備中もフォーム操作は利用できます。ログインの既存useLoginLayoutと回答入力バナーの比率は維持します。共通処理は[PageImageState.tsx](../../src/components/PageImageState.tsx)、取得・キャッシュは[画像設計](../images.md)を参照してください。
+
+共通状態テストと全画面の既存テストは成功。PC/スマホ・ライト/ダークの実描画はブラウザー接続不能のため保留です。[検証記録](../verification.md)。
