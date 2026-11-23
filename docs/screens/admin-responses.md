@@ -1,14 +1,30 @@
-# 回答結果画面
+# ランキング画面（旧回答結果）
 
 [索引](../design-index.md) / [画像](../images.md) / [API](../api.md)
 
 ## 目的と取得
 
-`/admin/responses`、admin専用。event_editionsをcreated_at降順で取得し、active回、なければ先頭を選択。list_admin_submissions(p_event_id)とcount_registered_usersを並列取得します。ページネーションはありません。
+`/admin/responses`、user/adminともログイン必須。既存URLを維持し、Headerと画面名を「ランキング」へ変更しています。プロフィール読込完了まではスピナー、その後ロール別にビューを分けます。
+
+adminはevent_editionsをcreated_at降順で取得し、active回、なければ先頭を選択。list_admin_submissions(p_event_id)とcount_registered_usersを並列取得します。非公開回も対象で、既存の管理操作を維持します。ページネーションはありません。
 
 共通Headerにライト／ダークテーマの切替を表示します。端末連動と保存規則は[共通設計](../architecture.md)を参照します。
 
-## 集計・ランキング・一覧
+## 一般ユーザーの表示・取得
+
+一般ユーザーに表示するのは開催回選択とランキングです。集計・検索・回答一覧・確認編集・CSVボタンは表示せず、管理用RPCや画像取得も呼びません。PublicRankingsは専用のlist_public_ranking_eventsとget_public_rankingsを使用します。
+
+- 開催回候補はranking_published=trueの回だけで、作成日時降順。公開済みの受付対象回を初期選択し、なければ先頭の公開回を選びます。
+- 公開回0件は「ランキングは公開準備中です。」。取得失敗とは区別します。
+- 開催回を変えるとその回の2キャラクター・3部門を表示。既存同様、キャラクターはラジオ選択、順位は確認済み得点の降順・同点は回答更新日時昇順、各部門上位10名です。0点も対象です。
+- 表示項目は順位、Discord名、プロデューサー名、確認済み得点。RPCもこれらと分類だけを返し、回答ID・ログインID・画像パス・管理者メモ・確認者・回答時刻は公開しません。得点なし・未確認・無効、設定外のキャラクター、11位以降はサーバーで除外します。
+- 読込中はスピナー。回切替中は前回のランキングを隠し、cleanupと選択回IDで古い応答を破棄します。開催回取得失敗は「開催回を読み込めませんでした。」、ランキング取得失敗は「ランキングを読み込めませんでした。」。専用再試行ボタンはなく再訪・再読込で取得します。
+- 公開された回に対象回答がなければ各部門に「ランキング対象の回答はありません。」。
+- 選択は永続化せず、再訪・再読込で初期選択へ戻ります。公開設定変更は次回の候補取得・ランキング取得で反映し、Realtime同期や表示済みデータの回収はありません。受付期間と公開可否は独立しています。
+
+取得・認可の詳細は[API](../api.md)、公開設定は[設定画面](admin-settings.md)を参照してください。
+
+## 管理者の集計・ランキング・一覧
 
 | 領域 | 計算・操作 |
 | --- | --- |
@@ -36,11 +52,11 @@
 
 ## CSV
 
-現在のfiltered配列と順序でブラウザー内生成。UTF-8 BOM、CRLF、全セル二重引用符で囲み、内部引用符を二重化。ファイル名は `responses-YYYY-MM-DD.csv`（UTC日付）。
+adminだけが使用可能。管理ビュー内にだけボタンを描画し、クリック処理でもroleを確認します。現在のfiltered配列と順序でブラウザー内生成。UTF-8 BOM、CRLF、全セル二重引用符で囲み、内部引用符を二重化。ファイル名は `responses-YYYY-MM-DD.csv`（UTC日付）。
 
 列はログインID、Discord名、プロデューサー名、キャラクター、応募部門、確認済み評価値、状態、メモ、初回回答日時、最終更新日時。日時はDB文字列、画像とURLは含めません。数式先頭文字を無害化する専用処理はありません。
 
-## 現行の失敗・状態保持
+## 管理者ビューの現行の失敗・状態保持
 
 開催回取得失敗と一覧取得失敗を個別の日本語文言で表示。count RPCのerrorは個別表示せずdataがなければ0。開催回を変えても検索・絞り込み・sortはリセットされません。旧回で選択したキャラクターフィルターが残ると新回が空表示になる場合があります。読込中に一覧を必ず空へ戻す設計ではありません。
 
@@ -55,3 +71,5 @@
 ## 実装根拠
 
 [ResponsesPage.tsx](../../src/pages/ResponsesPage.tsx)、[adminResponses.ts](../../src/lib/adminResponses.ts)、[ranking.ts](../../src/lib/ranking.ts)、[ResponseStats.tsx](../../src/components/responses/ResponseStats.tsx)、[ResponseRankings.tsx](../../src/components/responses/ResponseRankings.tsx)、[ResponsesTable.tsx](../../src/components/responses/ResponsesTable.tsx)、[ResponseModals.tsx](../../src/components/responses/ResponseModals.tsx)、[useReviewImages.ts](../../src/hooks/useReviewImages.ts)。
+
+一般向けは[PublicRankings.tsx](../../src/components/responses/PublicRankings.tsx)、[限定RPC](../../supabase/migrations/20261123000000_add_public_rankings.sql)、[画面テスト](../../src/pages/ResponsesPage.test.tsx)、[DBテスト](../../supabase/tests/public_rankings.sql)。2026-11-23: 画面・DB・実HTTPの検証済み。PC／スマートフォンの実描画・実CSV保存と全画面の手動操作はブラウザー操作の利用拒否により保留。[検証記録](../verification.md)を参照。

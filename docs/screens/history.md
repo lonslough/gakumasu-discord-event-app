@@ -39,4 +39,6 @@
 
 ## 実装根拠
 
+2026-11-23再照合: 本人限定の履歴・画像モーダル・取得権限は維持。ランキング公開設定は本人の参加履歴を隠す条件には使用しません。共通Headerに[ランキング](admin-responses.md)を追加。履歴/画像の13テストと履歴DB13項目を回帰確認。実ブラウザーの手動操作は保留。[検証記録](../verification.md)。
+
 [HistoryPage.tsx](../../src/pages/HistoryPage.tsx)、[HistoryImage.tsx](../../src/components/history/HistoryImage.tsx)、[Routes.tsx](../../src/components/Routes.tsx)、[Header.tsx](../../src/components/Header.tsx)、[types.ts](../../src/types.ts)、[履歴RPC](../../supabase/migrations/20261006000000_add_submission_history.sql)、[DB検証](../../supabase/tests/submission_history.sql)。

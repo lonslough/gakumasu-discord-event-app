@@ -6,6 +6,10 @@ export type MockEntryScenario = 'normal' | 'tie' | 'zero' | 'below-ten' | 'first
 let entryScenario: MockEntryScenario = 'normal'
 export const getMockEntryScenario = () => entryScenario
 export function setMockEntryScenario(value: MockEntryScenario) { entryScenario = value }
+export type MockRankingScenario = 'normal' | 'events-error' | 'ranking-error' | 'loading'
+let rankingScenario: MockRankingScenario = 'normal'
+export const getMockRankingScenario = () => rankingScenario
+export function setMockRankingScenario(value: MockRankingScenario) { rankingScenario = value }
 const now = () => new Date().toISOString()
 const stamp = '2026-10-01T09:00:00+09:00'
 export const isConfigured = true
@@ -24,7 +28,7 @@ const events = editionSeeds.map((seed, i) => ({
  rules_description: '対象キャラクターを育成して結果を提出してください。\n一般・スイッチOFF・初心者のいずれかの部門に応募できます。',
  submission_start_at: null, submission_end_at: null,
  character_options: seed.characters.map(id => structuredClone(characterRoster.find(character => character.id === id))),
- page_images_path: seed.id + '/page-images.zip', is_active: i === 0,
+ page_images_path: seed.id + '/page-images.zip', is_active: i === 0, ranking_published: false,
  created_at: seed.date, updated_at: seed.date,
 }))
 const submissions = [0,1,2,3].map((i)=>({id:'submission'+i,event_id:'current',user_id:'user'+(i+1),discord_username:['星南推し','つばめP','新人プロデューサー','星々のきらめき'][i],producer_name:'プロデューサー'+(i+1),category:i%2?'tsubame':'sena',entry_division:['open','switch_off','beginner','open'][i],score_image_path:'sample-score',deck_image_path:null,beginner_proof_image_path:i===2?'sample-proof':null,login_days_proof_image_path:i===2?'sample-days':null,created_at:stamp,updated_at:stamp}))
@@ -94,7 +98,7 @@ function query(table) {
  for(const v of batch) {
  let existing=operation==='update'?rows.find(r=>filters.every(([k,x])=>r[k]===x)):operation==='upsert'?rows.find(r=>table==='submissions'?r.event_id===v.event_id&&r.user_id===v.user_id:r.submission_id===v.submission_id):null
  if(table==='submissions'&&existing) { const review=reviews.find(r=>r.submission_id===existing.id); const changed=['score_image_path','deck_image_path','beginner_proof_image_path','login_days_proof_image_path'].some(k=>existing[k]!==v[k]); if(review?.verification_status==='verified'&&changed) return {data:null,error:new Error('reviewed_image_locked')}; if(review&&['category','score_image_path','deck_image_path'].some(k=>existing[k]!==v[k])) Object.assign(review,{verification_status:'pending',confirmed_score:null,verified_at:null,verified_by:null}) }
- if(existing) Object.assign(existing,structuredClone(v),{updated_at:now()}); else { existing={id:crypto.randomUUID(),created_at:now(),updated_at:now(),is_active:false,page_images_path:null,...structuredClone(v)}; rows.push(existing) }; matched.push(existing)
+ if(existing) Object.assign(existing,structuredClone(v),{updated_at:now()}); else { existing={id:crypto.randomUUID(),created_at:now(),updated_at:now(),is_active:false,ranking_published:false,page_images_path:null,...structuredClone(v)}; rows.push(existing) }; matched.push(existing)
  }
  }
  if(table==='submissions'&&!admin()) matched=matched.filter(r=>r.user_id===session.user.id)
@@ -110,6 +114,18 @@ export const supabase = {
  async rpc(name,args={}) {
  if(!session)return denied()
  const active=events.find(e=>e.is_active)
+ if(name==='list_public_ranking_events') {
+  if(rankingScenario==='loading') return new Promise(() => {})
+  if(rankingScenario==='events-error') return {data:null,error:new Error('mock_ranking_events_failed')}
+  return ok(events.filter(e=>e.ranking_published).sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(e=>({id:e.id,name:e.name,is_active:e.is_active,character_options:e.character_options,created_at:e.created_at})))
+ }
+ if(name==='get_public_rankings') {
+  if(rankingScenario==='ranking-error') return {data:null,error:new Error('mock_ranking_failed')}
+  const event=events.find(e=>e.id===args.p_event_id&&e.ranking_published)
+  if(!event)return denied()
+  const rows=submissions.filter(s=>s.event_id===event.id).map(s=>({...s,review:reviews.find(r=>r.submission_id===s.id)??null}))
+  return ok(event.character_options.flatMap(c=>['open','switch_off','beginner'].flatMap(division=>rankedByCategoryAndDivision(rows,c.id,division).slice(0,10).map((row,index)=>({category:c.id,entry_division:division,rank:index+1,discord_username:row.discord_username,producer_name:row.producer_name,confirmed_score:row.review.confirmed_score})))))
+ }
  if(name==='get_event_settings') return active ? ok({...active,...entryPeriod(active),event_id:active.id,event_name:active.name,server_now:now()}) : ok(null)
  if(name==='get_my_rank_neighbor') return myRankNeighbor(args.p_event_id)
  if(name==='list_my_submission_history') return ok(submissions.filter(s=>s.user_id===session.user.id).map(s=>{const e=events.find(e=>e.id===s.event_id),r=reviews.find(r=>r.submission_id===s.id); const {user_id,...entry}=s;return {...entry,event_name:e.name,is_active:e.is_active,character_options:e.character_options,verification_status:r?.verification_status??'pending',confirmed_score:r?.verification_status==='verified'?r.confirmed_score:null}}).sort((a,b)=>b.updated_at.localeCompare(a.updated_at)))

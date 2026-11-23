@@ -28,10 +28,22 @@ export interface EventEdition {
   character_options: CharacterOption[]
   page_images_path: string | null
   is_active: boolean
+  ranking_published: boolean
   created_at: string
   updated_at: string
 }
 export type EntryDivision = 'open' | 'switch_off' | 'beginner'
+
+export type PublicRankingEvent = Pick<EventEdition, 'id' | 'name' | 'is_active' | 'character_options' | 'created_at'>
+
+export interface PublicRankingEntry {
+  category: Category
+  entry_division: EntryDivision
+  rank: number
+  discord_username: string
+  producer_name: string
+  confirmed_score: number
+}
 export type VerificationStatus = 'pending' | 'verified' | 'invalid'
 
 export interface Profile {

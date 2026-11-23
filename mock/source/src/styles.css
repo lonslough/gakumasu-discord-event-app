@@ -375,6 +375,27 @@ a {
   padding: 18px;
 }
 
+.ranking-publication-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 8px;
+}
+
+.ranking-publication-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.mock-ranking-controls {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mock-ranking-controls label { margin-top: 16px; }
+
 .event-history-selector label {
   max-width: 420px;
 }
